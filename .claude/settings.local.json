@@ -3,7 +3,8 @@
     "allow": [
       "PowerShell(Remove-Item -Path \"c:\\\\Users\\\\fuatd\\\\Downloads\\\\files\\\\bulmuca-oyunu-deneme\\\\scripts\\\\example_level_generator.gd\" -Confirm:$false)",
       "PowerShell(Remove-Item -Path \"c:\\\\Users\\\\fuatd\\\\Downloads\\\\files\\\\bulmuca-oyunu-deneme\\\\.godot\" -Recurse -Force -Confirm:$false)",
-      "PowerShell(Remove-Item -Path \"c:\\\\Users\\\\fuatd\\\\Downloads\\\\files\\\\bulmuca-oyunu-deneme\\\\Test.tscn\" -Confirm:$false)"
+      "PowerShell(Remove-Item -Path \"c:\\\\Users\\\\fuatd\\\\Downloads\\\\files\\\\bulmuca-oyunu-deneme\\\\Test.tscn\" -Confirm:$false)",
+      "Bash(git config *)"
     ]
   }
 }
