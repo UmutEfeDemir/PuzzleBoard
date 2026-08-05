@@ -1,0 +1,15 @@
+﻿[gd_resource type="Resource" script_class="LevelData" format=3 uid="uid://v0s4ui7pi80o8"]
+
+[ext_resource type="Script" uid="uid://bedqu6mpvlmah" path="res://scripts/level_data.gd" id="1_lv067"]
+
+[resource]
+script = ExtResource("1_lv067")
+level_name = "Level 67"
+grid_width = 10
+grid_height = 8
+walls = Array[Vector2i]([Vector2i(9, 7), Vector2i(9, 0), Vector2i(8, 7), Vector2i(8, 0), Vector2i(7, 7), Vector2i(7, 0), Vector2i(6, 7), Vector2i(6, 0), Vector2i(5, 7), Vector2i(5, 0), Vector2i(4, 7), Vector2i(4, 0), Vector2i(3, 7), Vector2i(3, 0), Vector2i(2, 7), Vector2i(2, 0), Vector2i(1, 7), Vector2i(1, 0), Vector2i(0, 7), Vector2i(0, 0), Vector2i(9, 6), Vector2i(0, 6), Vector2i(9, 5), Vector2i(0, 5), Vector2i(9, 4), Vector2i(0, 4), Vector2i(9, 3), Vector2i(0, 3), Vector2i(9, 2), Vector2i(0, 2), Vector2i(9, 1), Vector2i(0, 1)])
+boxes = Array[Vector2i]([Vector2i(7, 5), Vector2i(4, 5)])
+targets = Array[Vector2i]([Vector2i(5, 1), Vector2i(1, 2)])
+player_start = Vector2i(8, 5)
+moves_for_3_stars = 19
+moves_for_2_stars = 27

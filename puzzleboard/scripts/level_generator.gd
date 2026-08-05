@@ -17,6 +17,14 @@ extends EditorScript
 ## Yeni level eklemek için: aşağıya _make_levels() içine bir satır ekle,
 ## harita + isim + yıldız limitlerini ver. res://levels/ altına .tres olarak
 ## kaydedilir, Level Select ekranı otomatik listeler (kod değişikliği gerekmez).
+##
+## NOT: Bu dosya sadece Level 1-8'i tanımlar (elle tasarlanmış, ASCII
+## haritalı). Level 9-100 ayrı, tek seferlik bir PowerShell script'iyle
+## (geometrik şablonlardan + BFS ile doğrulanmış formüllerle) toplu
+## üretildi ve .tres dosyaları doğrudan res://levels/ altına yazıldı — bu
+## dosyada YOKLAR. "File > Run" yaparsan sadece Level 1-8 yeniden yazılır,
+## 9-100 dosyalarına dokunulmaz (farklı dosya adları). Detaylar için
+## GELISTIRME_DURUMU.md'ye bak.
 
 func _run() -> void:
 	var dir := "res://levels"
@@ -28,21 +36,21 @@ func _run() -> void:
 
 func _make_levels(dir: String) -> void:
 	# Level 1: tek kutu, tek itme.
-	_save_level(dir, "level_01", "Level 1", [
+	_save_level(dir, "level_001", "Level 1", [
 		"#####",
 		"#@$.#",
 		"#####",
 	], 1, 2)
 
 	# Level 2: tek kutu, aynı yönde iki itme.
-	_save_level(dir, "level_02", "Level 2", [
+	_save_level(dir, "level_002", "Level 2", [
 		"######",
 		"#@$ .#",
 		"######",
 	], 2, 3)
 
 	# Level 3: iki kutu, iki oda + oda arası gezinme.
-	_save_level(dir, "level_03", "Level 3", [
+	_save_level(dir, "level_003", "Level 3", [
 		"######",
 		"#@$ .#",
 		"#    #",
@@ -51,7 +59,7 @@ func _make_levels(dir: String) -> void:
 	], 8, 12)
 
 	# Level 4: üç kutu, üç oda + daha uzun gezinme.
-	_save_level(dir, "level_04", "Level 4", [
+	_save_level(dir, "level_004", "Level 4", [
 		"######",
 		"#@$ .#",
 		"#    #",
@@ -62,7 +70,7 @@ func _make_levels(dir: String) -> void:
 	], 14, 20)
 
 	# Level 5: tek kutu, ilk "dönüş" - sağa it, sonra yukarıdan dolaşıp aşağı it.
-	_save_level(dir, "level_05", "Level 5", [
+	_save_level(dir, "level_005", "Level 5", [
 		"#######",
 		"#     #",
 		"#@$   #",
@@ -72,7 +80,7 @@ func _make_levels(dir: String) -> void:
 	], 6, 9)
 
 	# Level 6: iki kutu, ikisi de dönüşlü, yan yana iki oda.
-	_save_level(dir, "level_06", "Level 6", [
+	_save_level(dir, "level_006", "Level 6", [
 		"###########",
 		"#         #",
 		"#@$    $  #",
@@ -82,7 +90,7 @@ func _make_levels(dir: String) -> void:
 	], 15, 21)
 
 	# Level 7: üç kutu, üçü de dönüşlü, geniş tek koridor.
-	_save_level(dir, "level_07", "Level 7", [
+	_save_level(dir, "level_007", "Level 7", [
 		"################",
 		"#              #",
 		"#@$    $    $  #",
@@ -93,7 +101,7 @@ func _make_levels(dir: String) -> void:
 
 	# Level 8: üç kutu, artık tek koridor değil - haç şeklinde oda,
 	# kutular farklı sütunlardan aşağı itiliyor.
-	_save_level(dir, "level_08", "Level 8", [
+	_save_level(dir, "level_008", "Level 8", [
 		"#######",
 		"#     #",
 		"#  $  #",

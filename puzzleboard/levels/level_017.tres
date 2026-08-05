@@ -1,0 +1,15 @@
+﻿[gd_resource type="Resource" script_class="LevelData" format=3 uid="uid://t7fdf2ke4jbkf"]
+
+[ext_resource type="Script" uid="uid://bedqu6mpvlmah" path="res://scripts/level_data.gd" id="1_lv017"]
+
+[resource]
+script = ExtResource("1_lv017")
+level_name = "Level 17"
+grid_width = 5
+grid_height = 7
+walls = Array[Vector2i]([Vector2i(0, 6), Vector2i(4, 6), Vector2i(0, 5), Vector2i(4, 5), Vector2i(0, 4), Vector2i(4, 4), Vector2i(0, 3), Vector2i(4, 3), Vector2i(0, 2), Vector2i(4, 2), Vector2i(0, 1), Vector2i(4, 1), Vector2i(0, 0), Vector2i(4, 0), Vector2i(1, 6), Vector2i(1, 0), Vector2i(2, 6), Vector2i(2, 0), Vector2i(3, 6), Vector2i(3, 0)])
+boxes = Array[Vector2i]([Vector2i(2, 4)])
+targets = Array[Vector2i]([Vector2i(3, 1)])
+player_start = Vector2i(2, 5)
+moves_for_3_stars = 6
+moves_for_2_stars = 8

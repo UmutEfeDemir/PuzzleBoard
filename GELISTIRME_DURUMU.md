@@ -19,8 +19,8 @@ Son güncelleme: 2026-08-05
 
 Kod üzerinden çizilen (sprite/tileset asset'i olmayan), Sokoban tarzı kutu
 itme bulmacası. Mobil hedefli (Godot mobile rendering + swipe input +
-titreşim). Şu an **8 level** var, tüm temel oyun döngüsü (hareket/itme/undo/
-yıldız/kayıt) çalışıyor.
+titreşim). Şu an **100 level** var (4 bölüm x 25 level), tüm temel oyun
+döngüsü (hareket/itme/undo/redo/yıldız/kayıt/deadlock uyarısı) çalışıyor.
 
 ## Bu oturumda yapılan değişiklikler
 
@@ -153,6 +153,42 @@ kancalanacak tek nokta hazır.
   dosyaları eklenince aynı yöntemle (`SFXManager.play("click")` gibi) kolayca
   eklenebilir, şimdilik sadece oynanış (gameplay) tarafına odaklanıldı.
 
+### 13. Level 9-100 toplu üretimi + Level Seç'te "Bölüm" sistemi
+- **92 yeni level** (9-100) tek seferlik bir PowerShell script'iyle
+  (bu oturumda kullanılıp silindi, mantığı burada özetleniyor) toplu
+  üretildi. Elle 92 level tasarlamak yerine iki "doğruluğu inşa yoluyla
+  garanti" geometrik şablon kullanıldı:
+  - **stack**: K kutu, her biri kendi satırında, tek yöne düz itme
+    (level3/4'ün genellemesi).
+  - **turn**: K kutu, paylaşılan tek odada, sağa + aşağı itme
+    (level5/6/7'nin genellemesi).
+  Her şablonun optimal hamle sayısı **analitik bir formülle** hesaplandı
+  (BFS her level için tek tek çalıştırılmadı — çok yavaş olurdu). Formül,
+  BFS ile birden fazla noktada (K=2 ve K=3, hem stack hem turn) **birebir
+  doğrulandı**, sonra ölçekte güvenle kullanıldı.
+- **İlk versiyonda iki sorun çıktı, ikisi de düzeltildi:**
+  1. Levellar arasında bariz tekrar hissi vardı (aynı K/tip kombinasyonu
+     hep aynı boyutta çıkıyordu). Çözüm: her level ayrıca **transpose**
+     (x/y takası) + **yatay/dikey ayna** ile dönüştürülüyor — aynı doğrulanmış
+     geometri "geniş-yatay" da olabiliyor "dar-dikey" de (hamle sayısını
+     DEĞİŞTİRMEZ, sadece görünümü çeşitlendirir).
+  2. Bazı levellar telefon ekranı için fazla büyüktü (ör. 30 sütun, 13 satır).
+     Çözüm: tüm levellar **13x11 hücreyi asla aşmayacak** şekilde (genişlik
+     bütçesi K'ya göre dinamik hesaplanarak) sınırlandı; zorluk artışı boyut
+     büyütmek yerine daha çok kutu + daha uzun itme mesafesiyle sağlanıyor.
+- **Dosya adlandırma**: Level 1-8 `level_01.tres` → `level_001.tres` olarak
+  yeniden adlandırıldı (3 haneli) — 100'e çıkınca metin sıralaması
+  bozulmasın diye (`level_100` artık `level_2`'den önce gelmiyor).
+  `scripts/level_generator.gd` da bu isimlendirmeye güncellendi (sadece
+  Level 1-8'i tanımlıyor, 9-100 için başlığındaki nota bak).
+- **Level Seç ekranı "Bölüm" sekmelerine ayrıldı** (`scripts/level_select.gd`):
+  100 level tek uzun listede değil, her biri 25 levellik 4 sekmede
+  (`SEGMENT_SIZE = 25`). Bir bölümün kilidi, bir önceki bölümün SON
+  levelinin en az 1 yıldızla bitirilmiş olmasına bağlı — normal level kilit
+  zincirinin doğal uzantısı. Sekmeler yatayda kaydırılabilir, ileride
+  300-400 levele çıkılırsa (kullanıcıyla bu konuşuldu) aynı yapı sorunsuz
+  ölçekleniyor, kod değişikliği gerekmiyor.
+
 ## Bilinen sınırlamalar / henüz yapılmayanlar
 
 - **Ses efektleri altyapısı var ama gerçek ses dosyası yok** — `SFXManager`
@@ -181,9 +217,24 @@ kancalanacak tek nokta hazır.
 
 ## Test ederken dikkat
 
-- Godot'u kapat/aç (ya da projeyi yeniden içe aktar) — yeni eklenen autoload
-  (`MusicManager`) ve viewport ayarlarının editöre yansıması için gerekebilir.
-- `MainMenu.tscn`'i çalıştır, Level Seç'te artık 8 level görünmeli.
+- Godot'u kapat/aç (ya da projeyi yeniden içe aktar) — yeni eklenen autoload'lar
+  (`MusicManager`, `SFXManager`) ve viewport ayarlarının editöre yansıması
+  için gerekebilir.
+- `Splash.tscn` (ya da `MainMenu.tscn`) çalıştır, Level Seç'te artık 4 Bölüm
+  sekmesi ve toplam 100 level görünmeli. Bölüm 2-3-4 başta kilitli olmalı
+  (bir önceki bölümü bitirmeden açılmamalı).
 - Ayarlar ekranında "İlerlemeyi Sıfırla"yı test edeceksen, önce birkaç level
   bitirip yıldız kazan, sonra sıfırlayıp Level Seç'in kilitli duruma
   döndüğünü doğrula.
+- Yeni üretilen levellardan birkaçını (özellikle Bölüm 3-4'ten büyük olanları)
+  gerçekten oynayıp board'un ekrana sığdığını ve hücrelerin dokunulabilir
+  boyutta kaldığını gözle kontrol et.
+
+## Sıradaki konuşulan fikir (henüz kodlanmadı)
+
+Kullanıcı önerisi: **geri al (undo) monetizasyonu** — ilk geri alma ücretsiz,
+ikinciden itibaren ödüllü reklam izleterek hak kazanma; ayrıca her ~2 oyunda
+bir 10 saniyelik reklam. Bunun için gereken: bir reklam SDK'sı (ör. Google
+AdMob) + Godot export eklentisi + hesap/uygulama kaydı (mağaza tarafı,
+kullanıcının yapması gerekiyor) — Google Play Games entegrasyonuyla aynı
+kategoride, ayrı bir iş paketi olarak ele alınacak.
