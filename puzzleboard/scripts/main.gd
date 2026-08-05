@@ -43,6 +43,10 @@ var next_level_button: Button
 
 var level_finished: bool = false
 
+var deadlock_toast: Control
+var _deadlock_tween: Tween
+var _shake_tween: Tween
+
 
 func _ready() -> void:
 	UITheme.load_theme()
@@ -68,6 +72,7 @@ func _ready() -> void:
 	grid_manager.box_pushed.connect(_on_box_pushed)
 	grid_manager.level_completed.connect(_on_level_completed)
 	grid_manager.move_count_changed.connect(_on_move_count_changed)
+	grid_manager.box_deadlocked.connect(_on_box_deadlocked)
 
 
 func _make_cell_panel(color: Color, size: Vector2, corner_radius: int) -> Panel:
@@ -203,8 +208,12 @@ func _build_ui() -> void:
 	moves_row.add_child(moves_suffix)
 
 	var undo_btn := UITheme.make_chunky_button("Geri Al", Vector2(84, 38), Color.WHITE, COLOR_TRACK_SHADOW, COLOR_ICON_PURPLE, 14, 12)
-	undo_btn.pressed.connect(func(): grid_manager.undo())
+	undo_btn.pressed.connect(_do_undo)
 	row.add_child(undo_btn)
+
+	var redo_btn := UITheme.make_chunky_button("İleri Al", Vector2(84, 38), Color.WHITE, COLOR_TRACK_SHADOW, COLOR_ICON_PURPLE, 14, 12)
+	redo_btn.pressed.connect(_do_redo)
+	row.add_child(redo_btn)
 
 	progress_bar = ProgressBar.new()
 	progress_bar.show_percentage = false
@@ -230,6 +239,7 @@ func _build_ui() -> void:
 	hud_vbox.add_child(progress_bar)
 
 	_build_completion_overlay(canvas)
+	_build_deadlock_toast(canvas)
 
 
 func _build_completion_overlay(canvas: CanvasLayer) -> void:
@@ -340,6 +350,46 @@ func _build_completion_overlay(canvas: CanvasLayer) -> void:
 	vbox.add_child(level_select_button)
 
 
+## GridManager bir kutunun (köşeye sıkışıp) bir daha itilemeyeceğini
+## tespit edince gösterilecek, kısa süre sonra sönen bir uyarı rozeti.
+func _build_deadlock_toast(canvas: CanvasLayer) -> void:
+	var toast_margin := MarginContainer.new()
+	toast_margin.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	toast_margin.add_theme_constant_override("margin_top", 138)
+	toast_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(toast_margin)
+
+	var toast_center := CenterContainer.new()
+	toast_margin.add_child(toast_center)
+
+	deadlock_toast = UITheme.make_card(14, 10, Color(0, 0, 0, 0.6))
+	toast_center.add_child(deadlock_toast)
+
+	var label := Label.new()
+	label.text = "⚠ Bu kutu sıkıştı, Geri Al'ı dene"
+	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_LIGHT)
+	deadlock_toast.add_child(label)
+
+	deadlock_toast.modulate = Color(1, 1, 1, 0)
+
+
+func _on_box_deadlocked(_pos: Vector2i) -> void:
+	if _deadlock_tween:
+		_deadlock_tween.kill()
+
+	deadlock_toast.modulate.a = 0.0
+	_deadlock_tween = create_tween()
+	_deadlock_tween.tween_property(deadlock_toast, "modulate:a", 1.0, 0.15)
+	_deadlock_tween.tween_interval(1.4)
+	_deadlock_tween.tween_property(deadlock_toast, "modulate:a", 0.0, 0.3)
+
+	SFXManager.play("deadlock")
+
+	if SaveManager.get_setting("vibration", true):
+		Input.vibrate_handheld(15)
+
+
 func _make_stat_label(text: String, is_key: bool) -> Label:
 	var label := Label.new()
 	label.text = text
@@ -363,12 +413,37 @@ func _spaced(text: String) -> String:
 func _on_swiped(dir: Vector2i) -> void:
 	if level_finished:
 		return
-	grid_manager.try_move(dir)
+	_attempt_move(dir)
+
+
+## Hamle geçersizse (duvar/kilitli kutu) oyuncuyu o yöne hafifçe sarsarak
+## geri bildirim verir — "neden hareket etmedim" hissini azaltır.
+func _attempt_move(dir: Vector2i) -> void:
+	if not grid_manager.try_move(dir):
+		_shake_player(dir)
+		SFXManager.play("invalid")
+
+
+func _shake_player(dir: Vector2i) -> void:
+	if _shake_tween:
+		_shake_tween.kill()
+
+	var base_pos := Vector2(grid_manager.player_pos) * CELL_SIZE + Vector2(8, 8)
+	player_node.position = base_pos
+	var offset := Vector2(dir) * 8.0
+
+	_shake_tween = create_tween()
+	_shake_tween.tween_property(player_node, "position", base_pos + offset, 0.05)
+	_shake_tween.tween_property(player_node, "position", base_pos - offset * 0.4, 0.05)
+	_shake_tween.tween_property(player_node, "position", base_pos, 0.05)
 
 
 func _on_player_moved(_from: Vector2i, to: Vector2i) -> void:
+	if _shake_tween:
+		_shake_tween.kill()
 	var tw := create_tween()
 	tw.tween_property(player_node, "position", Vector2(to) * CELL_SIZE + Vector2(8, 8), 0.12)
+	SFXManager.play("move")
 
 
 func _on_box_pushed(from: Vector2i, to: Vector2i) -> void:
@@ -381,6 +456,8 @@ func _on_box_pushed(from: Vector2i, to: Vector2i) -> void:
 	var tw := create_tween()
 	tw.tween_property(box, "position", Vector2(to) * CELL_SIZE + Vector2(6, 6), 0.12)
 	tw.parallel().tween_property(box_style, "bg_color", target_color, 0.12)
+
+	SFXManager.play("push")
 
 	if SaveManager.get_setting("vibration", true):
 		Input.vibrate_handheld(25)
@@ -407,6 +484,8 @@ func _on_level_completed() -> void:
 
 	var previous_best := SaveManager.get_best_moves(level_name)
 	SaveManager.save_result(level_name, stars, moves)
+
+	SFXManager.play("win")
 
 	if SaveManager.get_setting("vibration", true):
 		Input.vibrate_handheld(60)
@@ -471,12 +550,24 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_UP, KEY_W:
-				grid_manager.try_move(Vector2i.UP)
+				_attempt_move(Vector2i.UP)
 			KEY_DOWN, KEY_S:
-				grid_manager.try_move(Vector2i.DOWN)
+				_attempt_move(Vector2i.DOWN)
 			KEY_LEFT, KEY_A:
-				grid_manager.try_move(Vector2i.LEFT)
+				_attempt_move(Vector2i.LEFT)
 			KEY_RIGHT, KEY_D:
-				grid_manager.try_move(Vector2i.RIGHT)
+				_attempt_move(Vector2i.RIGHT)
 			KEY_Z:
-				grid_manager.undo()
+				_do_undo()
+			KEY_Y:
+				_do_redo()
+
+
+func _do_undo() -> void:
+	grid_manager.undo()
+	SFXManager.play("undo")
+
+
+func _do_redo() -> void:
+	grid_manager.redo()
+	SFXManager.play("redo")

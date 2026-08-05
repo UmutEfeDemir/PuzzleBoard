@@ -44,7 +44,6 @@ func _ready() -> void:
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root_box.add_child(scroll)
 
 	var outer_margin := MarginContainer.new()
 	outer_margin.add_theme_constant_override("margin_left", SIDE_MARGIN)
@@ -55,6 +54,7 @@ func _ready() -> void:
 
 	var dir := DirAccess.open(LEVELS_DIR)
 	if dir == null:
+		root_box.add_child(scroll)
 		var warn := Label.new()
 		warn.text = "res://levels/ klasörü bulunamadı. Önce bir level .tres dosyası oluştur."
 		warn.add_theme_color_override("font_color", UITheme.COLOR_TEXT_LIGHT)
@@ -74,11 +74,15 @@ func _ready() -> void:
 	GameState.level_list = paths
 
 	if paths.is_empty():
+		root_box.add_child(scroll)
 		var empty_label := Label.new()
 		empty_label.text = "Henüz level yok."
 		empty_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_LIGHT)
 		outer_margin.add_child(empty_label)
 		return
+
+	root_box.add_child(_build_progress_summary(paths))
+	root_box.add_child(scroll)
 
 	var path_container := Control.new()
 	path_container.custom_minimum_size = Vector2(_path_width, TOP_PADDING + paths.size() * VERTICAL_SPACING + BOTTOM_PADDING)
@@ -135,6 +139,75 @@ func _build_header() -> Control:
 	title.add_theme_color_override("font_color", UITheme.COLOR_TEXT_LIGHT)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hbox.add_child(title)
+
+	return margin
+
+
+## Kaç level tamamlandı + toplam kaç yıldız kazanıldı özetini, ince bir
+## ilerleme çubuğuyla birlikte gösteren kart. Scroll alanının dışında
+## (header'ın hemen altında) durur, listeyi kaydırırken kaybolmaz.
+func _build_progress_summary(paths: Array[String]) -> Control:
+	var completed := 0
+	var stars_earned := 0
+	for path in paths:
+		var level: LevelData = load(path)
+		var stars: int = SaveManager.get_stars(level.level_name)
+		if stars > 0:
+			completed += 1
+		stars_earned += stars
+	var stars_total := paths.size() * 3
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", SIDE_MARGIN)
+	margin.add_theme_constant_override("margin_right", SIDE_MARGIN)
+	margin.add_theme_constant_override("margin_bottom", 10)
+
+	var card := UITheme.make_card(14, 14)
+	margin.add_child(card)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	card.add_child(vbox)
+
+	var row := HBoxContainer.new()
+	vbox.add_child(row)
+
+	var completed_label := Label.new()
+	completed_label.text = "%d / %d Level Tamamlandı" % [completed, paths.size()]
+	completed_label.add_theme_font_size_override("font_size", 14)
+	completed_label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
+	completed_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(completed_label)
+
+	var stars_label := Label.new()
+	stars_label.text = "★ %d / %d" % [stars_earned, stars_total]
+	stars_label.add_theme_font_size_override("font_size", 14)
+	stars_label.add_theme_color_override("font_color", UITheme.COLOR_TAG_YELLOW)
+	row.add_child(stars_label)
+
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 8)
+	bar.max_value = paths.size()
+	bar.value = completed
+
+	var track_style := StyleBoxFlat.new()
+	track_style.bg_color = UITheme.COLOR_DIVIDER
+	track_style.corner_radius_top_left = 4
+	track_style.corner_radius_top_right = 4
+	track_style.corner_radius_bottom_left = 4
+	track_style.corner_radius_bottom_right = 4
+	bar.add_theme_stylebox_override("background", track_style)
+
+	var fill_style := StyleBoxFlat.new()
+	fill_style.bg_color = UITheme.COLOR_ACCENT
+	fill_style.corner_radius_top_left = 4
+	fill_style.corner_radius_top_right = 4
+	fill_style.corner_radius_bottom_left = 4
+	fill_style.corner_radius_bottom_right = 4
+	bar.add_theme_stylebox_override("fill", fill_style)
+
+	vbox.add_child(bar)
 
 	return margin
 

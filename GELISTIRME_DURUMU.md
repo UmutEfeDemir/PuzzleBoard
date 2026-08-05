@@ -111,31 +111,73 @@ kancalanacak tek nokta hazır.
 - **Not**: Godot'u ilk açtığında `PuzzBoardLOGO.png`'yi otomatik import
   edecek (bir `.import` dosyası oluşacak) — bu normal, commit'e dahil et.
 
+### 10. Oyun mekaniği: Redo + deadlock tespiti
+- `scripts/grid_manager.gd`: `_redo_stack` eklendi. `undo()` artık geri alınan
+  komutu redo stack'e atıyor; yeni bir hamle (`_apply_command`) redo stack'i
+  temizliyor (mantıken doğrusu bu — ileri gidilecek eski bir gelecek kalmadı).
+  `redo()` / `can_redo()` eklendi. Ortak uygulama mantığı `_apply_move()`'a
+  çıkarıldı (hem `try_move` hem `redo` kullanıyor).
+- Basit **köşe deadlock tespiti** eklendi (`_check_deadlock`): bir kutu
+  hedefte değilse ve yatayda (sol VEYA sağ) + dikeyde (üst VEYA alt) duvar
+  varsa, o kutu bir daha asla itilemez — `box_deadlocked` sinyali yayınlanır.
+  **Not**: sadece duvara karşı köşe durumunu tespit ediyor, iki kutunun
+  birbirini kilitlemesi gibi daha karmaşık "freeze deadlock" durumları
+  kapsam dışı (false positive riskini azaltmak için bilerek basit tutuldu).
+- `scripts/main.gd`: HUD'a "Geri Al"ın yanına **"İleri Al"** butonu + `Y`
+  tuşu kısayolu eklendi. Deadlock sinyalinde ekranın üstünde kısa süreliğine
+  görünüp sönen bir uyarı rozeti (+ hafif titreşim) gösteriliyor.
+
+### 11. Cilalama / UX
+- `scripts/main.gd`: geçersiz hamlede (duvara/kilitli kutuya çarpınca)
+  oyuncu figürü artık o yöne hafifçe sarsılıyor (`_shake_player`) — hem
+  swipe hem klavye girişleri artık `try_move`'un dönüş değerini kontrol
+  ediyor (`_attempt_move`).
+- `scripts/level_select.gd`: header'ın altına, listeyi kaydırırken
+  kaybolmayan sabit bir **ilerleme özeti kartı** eklendi (`_build_progress_summary`)
+  — "X / Y Level Tamamlandı" + "★ kazanılan/toplam" + ince bir ilerleme
+  çubuğu.
+
+### 12. Ses efektleri altyapısı
+- Yeni `scripts/sfx_manager.gd` (autoload `SFXManager`), `music_manager.gd`
+  ile aynı felsefede: `res://audio/sfx/` altında dosya yoksa `play(...)`
+  sessizce hiçbir şey yapmaz, hata vermez. Ayarlar'daki "Ses Efektleri"
+  toggle'ı (`sound_effects`) kapalıysa da çalmaz.
+- Beklenen dosya adları `puzzleboard/audio/sfx/README.md`'de listeli:
+  `move.ogg`, `push.ogg`, `invalid.ogg`, `undo.ogg`, `redo.ogg`, `win.ogg`,
+  `deadlock.ogg`. Bu isimle dosya eklendiğinde otomatik çalmaya başlar.
+- `scripts/main.gd`'deki oyun olaylarına (hareket, kutu itme, geçersiz
+  hamle, geri al, ileri al, level bitişi, deadlock uyarısı) `SFXManager.play(...)`
+  çağrıları eklendi.
+- **Kapsam dışı bırakıldı**: menü ekranlarındaki (Ana Menü, Level Seç,
+  Ayarlar) genel buton tıklama sesleri henüz bağlanmadı — gerçek ses
+  dosyaları eklenince aynı yöntemle (`SFXManager.play("click")` gibi) kolayca
+  eklenebilir, şimdilik sadece oynanış (gameplay) tarafına odaklanıldı.
+
 ## Bilinen sınırlamalar / henüz yapılmayanlar
 
-- **Ses efektleri** henüz yok (ayar kaydediliyor ama gerçek audio sistemine
-  bağlı değil). Müzik altyapısı var (`music_manager.gd`, autoload artık
-  düzgün kayıtlı) ama `res://audio/music.ogg` dosyası projede yok.
+- **Ses efektleri altyapısı var ama gerçek ses dosyası yok** — `SFXManager`
+  doğru olayları çağırıyor, sadece `res://audio/sfx/*.ogg` dosyaları eksik
+  (bkz. `puzzleboard/audio/sfx/README.md`). Müzik de aynı durumda:
+  `music_manager.gd` autoload artık düzgün kayıtlı ama `res://audio/music.ogg`
+  dosyası projede yok.
 - **Google Play Games / Game Center bulut kayıt** entegre değil. Bunun için
   gereken: Android tarafında "Play Game Services" export eklentisi, iOS
   tarafında Game Center eklentisi, ayrıca Google Play Console / App Store
   Connect'te uygulamayı kayıt edip OAuth/servis ayarlarını yapmak — yani hem
   kod hem de mağaza tarafı (hesap sahibinin yapması gereken) adımlar var.
-- **Deadlock tespiti yok** — kutu köşeye sıkışınca oyuncuya uyarı verilmiyor.
-- **Redo yok** — sadece undo var (`grid_manager.gd`).
+- **Deadlock tespiti sınırlı** — sadece duvara karşı köşe durumu, kutu-kutu
+  freeze deadlock'ları tespit edilmiyor.
 - Gerçek lokalizasyon sistemi yok, proje tamamen Türkçe.
 
 ## Yol haritası (kullanıcıyla üzerinde anlaşılan sıra)
 
 1. ~~Daha fazla level~~ ✅ (Level 5-8 eklendi)
-2. **Oyun mekaniği iyileştirmeleri** ← şu an sırada: deadlock tespiti, redo
-   gibi ek mekanikler
-3. Cilalama / UX: geçersiz hamlede shake animasyonu, level select'te
-   ilerleme göstergesi vb.
-4. Ses efektleri altyapısı (gerçek ses dosyası olmadan test edilemeyeceği
-   için en sona bırakıldı)
-5. Google Play Games / Game Center bulut kayıt (büyük iş paketi, mağaza
-   tarafı kurulum gerektiriyor — ayrı ele alınacak)
+2. ~~Oyun mekaniği iyileştirmeleri~~ ✅ (redo + basit deadlock tespiti)
+3. ~~Cilalama / UX~~ ✅ (shake animasyonu + level select ilerleme göstergesi)
+4. ~~Ses efektleri altyapısı~~ ✅ (`SFXManager` + olaylara bağlandı — gerçek
+   .ogg dosyaları hâlâ eksik, eklenince otomatik çalışır)
+5. **Google Play Games / Game Center bulut kayıt** ← sırada — büyük iş
+   paketi, mağaza tarafı kurulum gerektiriyor, ayrı ele alınacak
 
 ## Test ederken dikkat
 
