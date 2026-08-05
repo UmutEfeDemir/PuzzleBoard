@@ -25,23 +25,31 @@ bulmuca-oyunu-deneme/          <- Godot proje kökü (res://)
 │   ├── level_select.gd          # Level seçim ekranı
 │   ├── settings.gd              # Ayarlar ekranı
 │   ├── main.gd                  # Oyun içi sahne (board'u kod ile çizer)
+│   ├── splash.gd                # Açılış (studio + logo) animasyonu
 │   └── level_generator.gd       # ASCII haritadan level (.tres) üretir
 ├── scenes/
-│   ├── MainMenu.tscn             # Ana sahne (Proje Ayarları > Run > Main Scene)
+│   ├── Splash.tscn                # Ana sahne (Proje Ayarları > Run > Main Scene)
+│   ├── MainMenu.tscn
 │   ├── LevelSelect.tscn
 │   ├── Settings.tscn
 │   └── Main.tscn
+├── art/
+│   └── PuzzBoardLOGO.png         # Splash 2. aşama (oyun logosu)
 └── levels/                      # level_generator.gd çalışınca dolar (.tres)
 ```
 
 ## Ekran akışı
 
 ```
-Ana Menü ──OYNA──▶ Level Seç ──(kilitli değilse)──▶ Oyun İçi ──bitince──▶ Tamamlandı kartı
-   │                    ▲                                │                    │
-   └──Ayarlar──▶ Ayarlar│                                └──X (kapat)─────────┘ (Sonraki / Tekrar / Level Seçime Dön)
+Splash ──(2 sn / dokun)──▶ Ana Menü ──OYNA──▶ Level Seç ──(kilitli değilse)──▶ Oyun İçi ──bitince──▶ Tamamlandı kartı
+                              │                    ▲                                │                    │
+                              └──Ayarlar──▶ Ayarlar│                                └──X (kapat)─────────┘ (Sonraki / Tekrar / Level Seçime Dön)
 ```
 
+- **Splash**: Proje Ayarları > Run > Main Scene burası. Önce DMR Studio
+  rozeti (kod içinde Panel + Label ile çizilir, `splash.gd`), ardından
+  `art/PuzzBoardLOGO.png` hafifçe dönerek/büyüyerek belirip söner; ekrana
+  dokunmak direkt Ana Menü'ye atlar.
 - **Ana Menü**: başlık, maskot, OYNA butonu, toplam yıldız göstergesi, Ayarlar.
 - **Level Seç**: her level bir rozet (kilitli/mevcut/tamamlanmış duruma göre
   renklenir). Bir önceki level en az 1 yıldızla bitirilmeden bir sonraki

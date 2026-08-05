@@ -90,7 +90,7 @@ func _build_board(level: LevelData) -> void:
 
 	board_layer = Node2D.new()
 	add_child(board_layer)
-	board_layer.position = Vector2(40, 160)  # ekranda ortalamak için ayarlanabilir
+	_fit_board_to_screen(level)
 
 	for x in range(level.grid_width):
 		for y in range(level.grid_height):
@@ -118,6 +118,32 @@ func _build_board(level: LevelData) -> void:
 	player_node = _make_cell_panel(COLOR_PLAYER, Vector2(player_size, player_size), int(player_size / 2))
 	player_node.position = Vector2(level.player_start) * CELL_SIZE + Vector2(8, 8)
 	board_layer.add_child(player_node)
+
+
+## Board'u, HUD'un altında kalan alana göre ortalar ve gerekirse küçültür.
+## Böylece hücre sayısı (level genişliği/yüksekliği) ekran boyutunu aşan
+## levellar da (ör. Level 7) taşmadan/sola yapışmadan sığar.
+const BOARD_TOP_RESERVED := 160.0
+const BOARD_SIDE_MARGIN := 24.0
+const BOARD_BOTTOM_MARGIN := 24.0
+
+func _fit_board_to_screen(level: LevelData) -> void:
+	var level_px_size := Vector2(level.grid_width, level.grid_height) * CELL_SIZE
+	var viewport_size: Vector2 = get_viewport_rect().size
+
+	var available_size := Vector2(
+		viewport_size.x - BOARD_SIDE_MARGIN * 2.0,
+		viewport_size.y - BOARD_TOP_RESERVED - BOARD_BOTTOM_MARGIN
+	)
+
+	var fit_scale: float = min(1.0, min(available_size.x / level_px_size.x, available_size.y / level_px_size.y))
+	board_layer.scale = Vector2(fit_scale, fit_scale)
+
+	var scaled_size := level_px_size * fit_scale
+	board_layer.position = Vector2(
+		(viewport_size.x - scaled_size.x) / 2.0,
+		BOARD_TOP_RESERVED + (available_size.y - scaled_size.y) / 2.0
+	)
 
 
 func _build_ui() -> void:
@@ -307,6 +333,11 @@ func _build_completion_overlay(canvas: CanvasLayer) -> void:
 	next_level_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	next_level_button.pressed.connect(_go_next_level)
 	button_row.add_child(next_level_button)
+
+	var level_select_button := UITheme.make_translucent_button("Level Seçime Dön", Vector2(0, 52), 15)
+	level_select_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	level_select_button.pressed.connect(_go_level_select)
+	vbox.add_child(level_select_button)
 
 
 func _make_stat_label(text: String, is_key: bool) -> Label:

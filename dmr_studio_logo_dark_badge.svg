@@ -1,0 +1,39 @@
+<svg viewBox="0 0 900 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="accentGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5C7"/>
+      <stop offset="100%" stop-color="#0091FF"/>
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14161C"/>
+      <stop offset="100%" stop-color="#0A0B0E"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="900" rx="60" fill="url(#bgGrad)"/>
+
+  <!-- Üst aksan çizgisi -->
+  <rect x="330" y="318" width="240" height="6" fill="url(#accentGrad2)" transform="skewX(-18)"/>
+
+  <!-- DMR wordmark -->
+  <text x="450" y="455"
+        font-family="Arial, Helvetica, sans-serif"
+        font-weight="900"
+        font-size="150"
+        letter-spacing="6"
+        fill="#F5F6F8"
+        text-anchor="middle">DMR</text>
+
+  <circle cx="602" cy="350" r="10" fill="url(#accentGrad2)"/>
+
+  <rect x="315" y="492" width="270" height="3" fill="#F5F6F8" opacity="0.25"/>
+
+  <!-- STUDIO wordmark -->
+  <text x="450" y="535"
+        font-family="Arial, Helvetica, sans-serif"
+        font-weight="500"
+        font-size="42"
+        letter-spacing="16"
+        fill="#F5F6F8"
+        text-anchor="middle">STUDIO</text>
+</svg>

@@ -43,6 +43,7 @@ func _ready() -> void:
 
 	content.add_child(_build_preferences_card())
 	content.add_child(_build_theme_card())
+	content.add_child(_build_data_card())
 
 
 func _build_header() -> Control:
@@ -126,6 +127,34 @@ func _build_theme_card() -> Control:
 	return card
 
 
+func _build_data_card() -> Control:
+	var card := UITheme.make_card(24, 8)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var vbox := VBoxContainer.new()
+	card.add_child(vbox)
+
+	_add_link_row(vbox, "İlerlemeyi Sıfırla", "", _confirm_reset_progress, UITheme.COLOR_DANGER)
+
+	return card
+
+
+func _confirm_reset_progress() -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "İlerlemeyi Sıfırla"
+	dialog.dialog_text = "Tüm level yıldızların ve rekorların silinecek. Bu işlem geri alınamaz. Emin misin?"
+	dialog.ok_button_text = "Sıfırla"
+	dialog.cancel_button_text = "Vazgeç"
+	add_child(dialog)
+	dialog.confirmed.connect(func():
+		SaveManager.reset_progress()
+		get_tree().reload_current_scene()
+	)
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.popup_centered()
+
+
 func _make_theme_option(text: String, active: bool) -> Button:
 	var btn: Button
 	if active:
@@ -179,7 +208,7 @@ func _add_toggle_row(parent: VBoxContainer, label_text: String, setting_key: Str
 	hbox.add_child(toggle)
 
 
-func _add_link_row(parent: VBoxContainer, label_text: String, value_text: String, on_press: Callable) -> void:
+func _add_link_row(parent: VBoxContainer, label_text: String, value_text: String, on_press: Callable, color = null) -> void:
 	var row := MarginContainer.new()
 	row.add_theme_constant_override("margin_left", 14)
 	row.add_theme_constant_override("margin_right", 14)
@@ -190,7 +219,7 @@ func _add_link_row(parent: VBoxContainer, label_text: String, value_text: String
 	var hbox := HBoxContainer.new()
 	row.add_child(hbox)
 
-	var btn := UITheme.make_flat_row_button(label_text)
+	var btn := UITheme.make_flat_row_button(label_text, color)
 	btn.custom_minimum_size = Vector2(0, 44)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.pressed.connect(on_press)

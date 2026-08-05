@@ -7,6 +7,12 @@ class_name SaveManager
 const SAVE_PATH := "user://save_data.json"
 const SETTINGS_KEY := "_settings"  # level isimleriyle çakışmasın diye alt çizgiyle başlıyor
 
+## Bulut senkronizasyonu (Google Play Games / Game Center) ileride eklenirse
+## buraya bağlanacak tek nokta: set edilirse her yerel kayıttan (_save_data)
+## sonra güncel veriyle çağrılır. Boşken (Callable() varsayılanı) hiçbir şey
+## yapmaz, yerel kayıt tek başına eskisi gibi çalışmaya devam eder.
+static var cloud_sync_handler: Callable = Callable()
+
 
 static func _load_data() -> Dictionary:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -24,6 +30,8 @@ static func _save_data(data: Dictionary) -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	file.store_string(JSON.stringify(data))
 	file.close()
+	if cloud_sync_handler.is_valid():
+		cloud_sync_handler.call(data)
 
 
 static func _get_record(data: Dictionary, level_name: String) -> Dictionary:
@@ -56,6 +64,15 @@ static func get_stars(level_name: String) -> int:
 static func get_best_moves(level_name: String) -> int:
 	var data := _load_data()
 	return _get_record(data, level_name).get("best_moves", -1)
+
+
+## Tüm level yıldız/rekor verisini siler. Ses/Müzik/Titreşim/Tema tercihleri
+## (_settings altında ayrı tutulduğu için) SİLİNMEZ, kullanıcı sadece oyun
+## ilerlemesini sıfırlamış olur.
+static func reset_progress() -> void:
+	var data := _load_data()
+	var settings: Dictionary = data.get(SETTINGS_KEY, {})
+	_save_data({SETTINGS_KEY: settings})
 
 
 static func get_setting(key: String, default_value: Variant) -> Variant:

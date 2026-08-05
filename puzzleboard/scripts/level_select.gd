@@ -10,18 +10,27 @@ extends Node2D
 
 const LEVELS_DIR := "res://levels/"
 
-const PATH_WIDTH := 340.0
+const SIDE_MARGIN := 24
 const NODE_W := 120.0
 const NODE_H := 150.0
 const VERTICAL_SPACING := 160.0
 const TOP_PADDING := 40.0
 const BOTTOM_PADDING := 40.0
-const LEFT_X := PATH_WIDTH * 0.12
-const RIGHT_X := PATH_WIDTH * 0.88 - NODE_W
+
+## Sabit değil: ekran genişliğine göre _ready()'de hesaplanır, böylece
+## zigzag yol her zaman gerçek ekran genişliğini kullanır (sol tarafa
+## yapışıp sağda boşluk bırakmaz).
+var _path_width: float
+var _left_x: float
+var _right_x: float
 
 
 func _ready() -> void:
 	UITheme.load_theme()
+
+	_path_width = get_viewport_rect().size.x - SIDE_MARGIN * 2.0
+	_left_x = _path_width * 0.12
+	_right_x = _path_width * 0.88 - NODE_W
 
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
@@ -38,8 +47,8 @@ func _ready() -> void:
 	root_box.add_child(scroll)
 
 	var outer_margin := MarginContainer.new()
-	outer_margin.add_theme_constant_override("margin_left", 24)
-	outer_margin.add_theme_constant_override("margin_right", 24)
+	outer_margin.add_theme_constant_override("margin_left", SIDE_MARGIN)
+	outer_margin.add_theme_constant_override("margin_right", SIDE_MARGIN)
 	outer_margin.add_theme_constant_override("margin_top", 8)
 	outer_margin.add_theme_constant_override("margin_bottom", 24)
 	scroll.add_child(outer_margin)
@@ -72,7 +81,7 @@ func _ready() -> void:
 		return
 
 	var path_container := Control.new()
-	path_container.custom_minimum_size = Vector2(PATH_WIDTH, TOP_PADDING + paths.size() * VERTICAL_SPACING + BOTTOM_PADDING)
+	path_container.custom_minimum_size = Vector2(_path_width, TOP_PADDING + paths.size() * VERTICAL_SPACING + BOTTOM_PADDING)
 	outer_margin.add_child(path_container)
 
 	var path_line := PathLine.new()
@@ -93,7 +102,7 @@ func _ready() -> void:
 			current_assigned = true
 
 		var node_pos := Vector2(
-			LEFT_X if i % 2 == 0 else RIGHT_X,
+			_left_x if i % 2 == 0 else _right_x,
 			TOP_PADDING + i * VERTICAL_SPACING
 		)
 		var badge_center := _add_level_node(path_container, path, level, i, stars, locked, is_current, node_pos)

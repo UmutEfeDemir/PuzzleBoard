@@ -61,6 +61,49 @@ func _make_levels(dir: String) -> void:
 		"######",
 	], 14, 20)
 
+	# Level 5: tek kutu, ilk "dönüş" - sağa it, sonra yukarıdan dolaşıp aşağı it.
+	_save_level(dir, "level_05", "Level 5", [
+		"#######",
+		"#     #",
+		"#@$   #",
+		"#  #  #",
+		"#   . #",
+		"#######",
+	], 6, 9)
+
+	# Level 6: iki kutu, ikisi de dönüşlü, yan yana iki oda.
+	_save_level(dir, "level_06", "Level 6", [
+		"###########",
+		"#         #",
+		"#@$    $  #",
+		"#         #",
+		"#   .    .#",
+		"###########",
+	], 15, 21)
+
+	# Level 7: üç kutu, üçü de dönüşlü, geniş tek koridor.
+	_save_level(dir, "level_07", "Level 7", [
+		"################",
+		"#              #",
+		"#@$    $    $  #",
+		"#              #",
+		"#   .   .   .  #",
+		"################",
+	], 22, 31)
+
+	# Level 8: üç kutu, artık tek koridor değil - haç şeklinde oda,
+	# kutular farklı sütunlardan aşağı itiliyor.
+	_save_level(dir, "level_08", "Level 8", [
+		"#######",
+		"#     #",
+		"#  $  #",
+		"#     #",
+		"#$ @ $#",
+		"#     #",
+		"#. . .#",
+		"#######",
+	], 21, 30)
+
 
 ## --- Alt seviye yardımcılar: yeni level eklerken bunlara dokunmana gerek yok ---
 
