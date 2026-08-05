@@ -47,6 +47,10 @@ var deadlock_toast: Control
 var _deadlock_tween: Tween
 var _shake_tween: Tween
 
+## Bu leveldeki ücretsiz geri alma hakkı kullanıldı mı? Level başına sıfırlanır
+## (bu script her level yüklendiğinde yeniden _ready() çalıştırıyor).
+var _free_undo_used := false
+
 
 func _ready() -> void:
 	UITheme.load_theme()
@@ -486,6 +490,7 @@ func _on_level_completed() -> void:
 	SaveManager.save_result(level_name, stars, moves)
 
 	SFXManager.play("win")
+	AdManager.notify_level_completed()
 
 	if SaveManager.get_setting("vibration", true):
 		Input.vibrate_handheld(60)
@@ -563,7 +568,33 @@ func _unhandled_input(event: InputEvent) -> void:
 				_do_redo()
 
 
+## Bu leveldeki ilk geri alma ücretsiz; ikincisinden itibaren ödüllü reklam
+## izlemek gerekiyor (bkz. ad_manager.gd — SDK bağlanana kadar reklam
+## otomatik "izlenmiş" sayılıyor, akış test sırasında bloklanmıyor).
 func _do_undo() -> void:
+	if not grid_manager.can_undo():
+		return
+	if not _free_undo_used:
+		_free_undo_used = true
+		_perform_undo()
+	else:
+		_confirm_rewarded_undo()
+
+
+func _confirm_rewarded_undo() -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Reklam İzle"
+	dialog.dialog_text = "Bu leveldeki ücretsiz geri almayı kullandın. Bir hamle daha geri almak için kısa bir reklam izlemen gerekiyor."
+	dialog.ok_button_text = "Reklamı İzle"
+	dialog.cancel_button_text = "Vazgeç"
+	add_child(dialog)
+	dialog.confirmed.connect(func(): AdManager.show_rewarded_ad(_perform_undo))
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.popup_centered()
+
+
+func _perform_undo() -> void:
 	grid_manager.undo()
 	SFXManager.play("undo")
 

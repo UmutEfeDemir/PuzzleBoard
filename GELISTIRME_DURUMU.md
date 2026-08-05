@@ -181,13 +181,45 @@ kancalanacak tek nokta hazır.
   bozulmasın diye (`level_100` artık `level_2`'den önce gelmiyor).
   `scripts/level_generator.gd` da bu isimlendirmeye güncellendi (sadece
   Level 1-8'i tanımlıyor, 9-100 için başlığındaki nota bak).
-- **Level Seç ekranı "Bölüm" sekmelerine ayrıldı** (`scripts/level_select.gd`):
-  100 level tek uzun listede değil, her biri 25 levellik 4 sekmede
-  (`SEGMENT_SIZE = 25`). Bir bölümün kilidi, bir önceki bölümün SON
-  levelinin en az 1 yıldızla bitirilmiş olmasına bağlı — normal level kilit
-  zincirinin doğal uzantısı. Sekmeler yatayda kaydırılabilir, ileride
-  300-400 levele çıkılırsa (kullanıcıyla bu konuşuldu) aynı yapı sorunsuz
-  ölçekleniyor, kod değişikliği gerekmiyor.
+- **Level Seç ekranı "Bölüm"lere ayrıldı** (`scripts/level_select.gd`):
+  100 level tek uzun listede değil, her biri 25 levellik 4 bölümde
+  (`SEGMENT_SIZE = 25`). Bir bölümün kilidi, bir önceki bölümde en az
+  **`STARS_REQUIRED_TO_UNLOCK_SEGMENT = 40` yıldız** kazanılmış olmasına
+  bağlı (sadece son leveli bitirmek yetmiyor — kullanıcı isteği). Kilitli
+  bir bölüme de gidilebilir, kaç yıldız gerektiği gösterilir (levellar
+  kilitli görünür, oynanamaz).
+  - **İlk versiyon yatay kaydırılabilir sekme şeridiydi, kullanıcı bunun
+    bölüm sayısı artınca (ileride 300-400 levele çıkılırsa, ~12-16 bölüm)
+    kullanışsız kalacağını fark etti.** Onun yerine `< Bölüm N (başlangıç-
+    bitiş) >` şeklinde bir **pager** (ok navigasyonu) kullanılıyor — kaç
+    bölüm olursa olsun aynı genişlikte kalıyor, ölçeklenme sorunu yok.
+
+### 14. Ödüllü reklam ile geri alma (monetizasyon altyapısı)
+Kullanıcı fikri: her leveldeki ilk geri alma ücretsiz, ikincisinden itibaren
+ödüllü reklam izleyerek hak kazanılsın; ayrıca her ~2 levelde bir
+interstitial reklam gösterilsin.
+- Yeni `scripts/ad_manager.gd` (autoload `AdManager`) — `music_manager.gd`/
+  `sfx_manager.gd` ile aynı felsefe: dışarıdan çağıran kod hiç değişmeden,
+  bu dosyanın içi gerçek bir reklam SDK'sıyla (ör. AdMob) değiştirilecek.
+  **Şu an gerçek reklam SDK'sı bağlı değil**:
+  - `show_rewarded_ad(on_reward)`: kısa bir gecikmeden sonra ödülü OTOMATİK
+    veriyor — test/geliştirme akışı hiç bloklanmasın diye (kullanıcıyla
+    üzerinde anlaşılan davranış: gerçek SDK bağlanana kadar simüle et).
+  - `show_interstitial()`: şimdilik sadece print yapıyor.
+  - `notify_level_completed()`: her `GAMES_PER_INTERSTITIAL` (=2) level
+    tamamlanmasında bir `show_interstitial()` tetikler.
+- `scripts/main.gd`: `_do_undo()` artık ilk çağrıda direkt geri alıyor,
+  sonrakilerde `ConfirmationDialog` ile "Reklamı İzle" onayı alıp
+  `AdManager.show_rewarded_ad(...)` çağırıyor. Ücretsiz hak level başına
+  sıfırlanıyor (`_free_undo_used`, her level yeni bir Main sahnesi olduğu
+  için otomatik sıfırlanıyor). **Redo (İleri Al) gate'lenmedi** — kullanıcı
+  sadece geri almadan bahsetti, ileri alma zaten geri almanın telafisi
+  olduğu için serbest bırakıldı.
+- **Gerçek AdMob entegrasyonu için gereken** (henüz yapılmadı): Godot Admob
+  export eklentisi + Android/iOS export ayarları, AdMob hesabında uygulama
+  kaydı + ödüllü/interstitial reklam birimi ID'leri — Google Play Games
+  entegrasyonuyla aynı kategoride, mağaza tarafı kurulum gerektiren ayrı bir
+  iş paketi.
 
 ## Bilinen sınırlamalar / henüz yapılmayanlar
 

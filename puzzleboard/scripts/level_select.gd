@@ -9,12 +9,17 @@ extends Node2D
 ## Düğümler zikzak bir yol üzerinde sırayla sola-sağa kayarak dizilir.
 ##
 ## 100 leveli tek bir uzun listede göstermek yerine, her biri 25 levellik
-## "Bölüm" sekmelerine ayrılmış durumda (bkz. SEGMENT_SIZE). Bir bölümün
-## kilidi, bir önceki bölümün SON levelinin en az 1 yıldızla bitirilmiş
-## olmasına bağlı — normal level kilit zincirinin doğal bir uzantısı.
+## "Bölüm"lere ayrılmış durumda (bkz. SEGMENT_SIZE). Bölümler arasında
+## sekme şeridi YERİNE ok (< >) ile gezinilir — level sayısı ileride
+## 300-400'e çıkınca (bkz. GELISTIRME_DURUMU.md) bölüm sayısı da 12-16'ya
+## çıkacak, sabit genişlikte bir sekme şeridi o zaman kullanışsız olurdu;
+## ok navigasyonu kaç bölüm olursa olsun aynı kalır. Bir bölümün kilidi,
+## bir önceki bölümde en az STARS_REQUIRED_TO_UNLOCK_SEGMENT yıldız
+## kazanılmış olmasına bağlı.
 
 const LEVELS_DIR := "res://levels/"
 const SEGMENT_SIZE := 25
+const STARS_REQUIRED_TO_UNLOCK_SEGMENT := 40
 
 const SIDE_MARGIN := 24
 const NODE_W := 120.0
@@ -34,7 +39,10 @@ var _all_paths: Array[String] = []
 var _segments: Array = []  # Array[Array[String]]
 var _current_segment: int = 0
 
-var _tabs_row: HBoxContainer
+var _pager_title: Label
+var _pager_subtitle: Label
+var _prev_btn: Button
+var _next_btn: Button
 var _scroll: ScrollContainer
 var _path_outer_margin: MarginContainer
 var _path_container: Control
@@ -100,11 +108,11 @@ func _ready() -> void:
 	_segments = _build_segments(paths)
 
 	root_box.add_child(_build_progress_summary(paths))
-	root_box.add_child(_build_segment_tabs())
+	root_box.add_child(_build_segment_pager())
 	root_box.add_child(_scroll)
 
 	_current_segment = _find_initial_segment()
-	_populate_tabs()
+	_update_pager()
 	_render_segment(_current_segment)
 
 
@@ -121,16 +129,22 @@ func _build_segments(paths: Array[String]) -> Array:
 	return segments
 
 
-## Bölüm s'nin ilk levelinin açık olup olmadığı — bir önceki bölümün son
-## levelinin en az 1 yıldızla bitirilmiş olmasına bağlı. 0. bölüm her zaman
+func _stars_in_segment(s: int) -> int:
+	var total := 0
+	for path in _segments[s]:
+		var level: LevelData = load(path)
+		total += SaveManager.get_stars(level.level_name)
+	return total
+
+
+## Bölüm s'nin açık olup olmadığı — bir önceki bölümde en az
+## STARS_REQUIRED_TO_UNLOCK_SEGMENT yıldız kazanılmış olmasına bağlı (sadece
+## son leveli bitirmek yetmez, toplam yıldız barajı var). 0. bölüm her zaman
 ## açık (ilk level zaten hep açık).
 func _is_segment_unlocked(s: int) -> bool:
 	if s == 0:
 		return true
-	var prev_segment: Array = _segments[s - 1]
-	var prev_last_path: String = prev_segment[prev_segment.size() - 1]
-	var prev_level: LevelData = load(prev_last_path)
-	return SaveManager.get_stars(prev_level.level_name) > 0
+	return _stars_in_segment(s - 1) >= STARS_REQUIRED_TO_UNLOCK_SEGMENT
 
 
 ## Oyuncunun "şimdi" olduğu (tamamlanmamış ilk açık) levelin hangi bölümde
@@ -241,56 +255,75 @@ func _build_progress_summary(paths: Array[String]) -> Control:
 	return margin
 
 
-## Bölüm sekmelerinin oturduğu yatay kaydırılabilir şerit. İçeriği
-## _populate_tabs() dolduruyor (seçili bölüm değişince yeniden çağrılır).
-func _build_segment_tabs() -> Control:
-	var outer_margin := MarginContainer.new()
-	outer_margin.add_theme_constant_override("margin_left", SIDE_MARGIN)
-	outer_margin.add_theme_constant_override("margin_right", SIDE_MARGIN)
-	outer_margin.add_theme_constant_override("margin_bottom", 10)
+## "< Bölüm N (başlangıç-bitiş) >" şeklinde bir pager — sekme şeridi yerine
+## bunu kullanıyoruz çünkü kaç bölüm olursa olsun (4 de olsa 16 da) aynı
+## genişlikte kalıyor. Kilitli bir bölüme de gidilebilir (gezip kaç yıldız
+## gerektiğini görebilsin diye), sadece içindeki levellar kilitli görünür.
+func _build_segment_pager() -> Control:
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", SIDE_MARGIN)
+	margin.add_theme_constant_override("margin_right", SIDE_MARGIN)
+	margin.add_theme_constant_override("margin_bottom", 10)
 
-	var tabs_scroll := ScrollContainer.new()
-	tabs_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	tabs_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	outer_margin.add_child(tabs_scroll)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	margin.add_child(row)
 
-	_tabs_row = HBoxContainer.new()
-	_tabs_row.add_theme_constant_override("separation", 10)
-	tabs_scroll.add_child(_tabs_row)
+	_prev_btn = UITheme.make_translucent_button("<", Vector2(44, 52), 18)
+	_prev_btn.pressed.connect(func(): _on_segment_selected(_current_segment - 1))
+	row.add_child(_prev_btn)
 
-	return outer_margin
+	var card := UITheme.make_card(14, 10)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(card)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	card.add_child(vbox)
+
+	_pager_title = Label.new()
+	_pager_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pager_title.add_theme_font_size_override("font_size", 16)
+	_pager_title.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
+	vbox.add_child(_pager_title)
+
+	_pager_subtitle = Label.new()
+	_pager_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pager_subtitle.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(_pager_subtitle)
+
+	_next_btn = UITheme.make_translucent_button(">", Vector2(44, 52), 18)
+	_next_btn.pressed.connect(func(): _on_segment_selected(_current_segment + 1))
+	row.add_child(_next_btn)
+
+	return margin
 
 
-func _populate_tabs() -> void:
-	for child in _tabs_row.get_children():
-		child.queue_free()
+func _update_pager() -> void:
+	var s := _current_segment
+	var chunk: Array = _segments[s]
+	var start: int = s * SEGMENT_SIZE + 1
+	var end: int = start + chunk.size() - 1
 
-	for s in _segments.size():
-		var chunk: Array = _segments[s]
-		var start: int = s * SEGMENT_SIZE + 1
-		var end: int = start + chunk.size() - 1
-		var label := "Bölüm %d\n%d-%d" % [s + 1, start, end]
-		var unlocked := _is_segment_unlocked(s)
-		var selected := s == _current_segment
+	_pager_title.text = "Bölüm %d" % (s + 1)
 
-		var btn: Button
-		if not unlocked:
-			btn = UITheme.make_chunky_button(label, Vector2(96, 46), UITheme.COLOR_LOCKED_BG, Color(0, 0, 0, 0), UITheme.COLOR_TEXT_MUTED, 12, 12)
-			btn.disabled = true
-		elif selected:
-			btn = UITheme.make_chunky_button(label, Vector2(96, 46), UITheme.COLOR_ACCENT, UITheme.COLOR_ACCENT_SHADOW, UITheme.COLOR_ACCENT_TEXT, 12, 12)
-		else:
-			btn = UITheme.make_translucent_button(label, Vector2(96, 46), 12)
-			btn.pressed.connect(_on_segment_selected.bind(s))
+	if _is_segment_unlocked(s):
+		_pager_subtitle.text = "%d-%d" % [start, end]
+		_pager_subtitle.add_theme_color_override("font_color", UITheme.COLOR_TEXT_MUTED)
+	else:
+		var have := _stars_in_segment(s - 1)
+		_pager_subtitle.text = "🔒 %d-%d  ·  %d/%d ★ gerekiyor" % [start, end, have, STARS_REQUIRED_TO_UNLOCK_SEGMENT]
+		_pager_subtitle.add_theme_color_override("font_color", UITheme.COLOR_DANGER)
 
-		_tabs_row.add_child(btn)
+	_prev_btn.disabled = s == 0
+	_next_btn.disabled = s == _segments.size() - 1
 
 
 func _on_segment_selected(s: int) -> void:
-	if s == _current_segment or not _is_segment_unlocked(s):
+	if s < 0 or s >= _segments.size() or s == _current_segment:
 		return
 	_current_segment = s
-	_populate_tabs()
+	_update_pager()
 	_render_segment(s)
 	_scroll.scroll_vertical = 0
 
