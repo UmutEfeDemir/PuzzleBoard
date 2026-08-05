@@ -142,9 +142,6 @@ kancalanacak tek nokta hazır.
   ile aynı felsefede: `res://audio/sfx/` altında dosya yoksa `play(...)`
   sessizce hiçbir şey yapmaz, hata vermez. Ayarlar'daki "Ses Efektleri"
   toggle'ı (`sound_effects`) kapalıysa da çalmaz.
-- Beklenen dosya adları `puzzleboard/audio/sfx/README.md`'de listeli:
-  `move.ogg`, `push.ogg`, `invalid.ogg`, `undo.ogg`, `redo.ogg`, `win.ogg`,
-  `deadlock.ogg`. Bu isimle dosya eklendiğinde otomatik çalmaya başlar.
 - `scripts/main.gd`'deki oyun olaylarına (hareket, kutu itme, geçersiz
   hamle, geri al, ileri al, level bitişi, deadlock uyarısı) `SFXManager.play(...)`
   çağrıları eklendi.
@@ -152,6 +149,23 @@ kancalanacak tek nokta hazır.
   Ayarlar) genel buton tıklama sesleri henüz bağlanmadı — gerçek ses
   dosyaları eklenince aynı yöntemle (`SFXManager.play("click")` gibi) kolayca
   eklenebilir, şimdilik sadece oynanış (gameplay) tarafına odaklanıldı.
+
+### 15. Yer tutucu ses efekti dosyaları üretildi
+Daha önce `SFXManager` doğru olayları çağırıyordu ama `res://audio/sfx/`
+altında hiçbir gerçek ses dosyası yoktu (oyun sessizdi). Bir PowerShell
+script'iyle (bu oturumda kullanılıp silindi) **7 basit, kod-üretilen
+`.wav` dosyası** (sinüs tonlar + tık sesini azaltan atak/sönme zarfı)
+üretilip `puzzleboard/audio/sfx/` altına yazıldı: `move.wav`, `push.wav`,
+`invalid.wav`, `undo.wav`, `redo.wav`, `win.wav`, `deadlock.wav`.
+- Bunlar **gerçek ses tasarımı değil** — sadece oyun artık tamamen sessiz
+  olmasın diye. `sfx_manager.gd`'deki `SFX_FILES` sözlüğü `.ogg`'dan
+  `.wav`'a güncellendi (Godot `.wav`'ı ek bir encoder gerekmeden içe
+  aktarabiliyor, bu yüzden `.wav` seçildi).
+- Gerçek ses dosyaların hazır olunca aynı isimle (`move.wav` vb.) üzerine
+  yazman yeterli — istersen `.ogg`/`.mp3` de kullanabilirsin, sadece
+  `SFX_FILES`'taki uzantıyı güncellemen gerekir.
+- **Not**: Godot'u ilk açtığında bu 7 dosyayı otomatik import edecek (her
+  biri için bir `.import` dosyası oluşacak) — bu normal, commit'e dahil et.
 
 ### 13. Level 9-100 toplu üretimi + Level Seç'te "Bölüm" sistemi
 - **92 yeni level** (9-100) tek seferlik bir PowerShell script'iyle
@@ -221,13 +235,34 @@ interstitial reklam gösterilsin.
   entegrasyonuyla aynı kategoride, mağaza tarafı kurulum gerektiren ayrı bir
   iş paketi.
 
+### 16. Genel gözden geçirme (bug avı)
+Yeni özellik eklemeden önce, bu oturumda değişen tüm dosyalar (grid_manager,
+main.gd, level_select, save_manager, settings, splash, ad_manager,
+level_generator, project.godot, birkaç .tres örneği) tekrar okunup
+tutarlılık kontrolü yapıldı.
+- **Bulunan ve düzeltilen tek gerçek hata**: `scripts/main.gd`'deki level
+  yükleme fallback'i hâlâ eski 2 haneli dosya adını kullanıyordu
+  (`"res://levels/level_01.tres"`). Level 1-8'i 3 haneliye yeniden
+  adlandırdığımızda (bkz. bölüm 13) bu satır gözden kaçmıştı — dosya artık
+  yok, yani Main sahnesi Level Seç'ten geçilmeden direkt açılırsa (GameState
+  boşken) `load()` null dönüp çökerdi. `"res://levels/level_001.tres"`
+  olarak düzeltildi. Proje genelinde başka eski isim kalıntısı kalmadığı
+  grep ile doğrulandı.
+- Kontrol edilip **sorun bulunmayan** yerler: redo/deadlock mantığı
+  (grid_manager), undo/redo + reklam onay akışı, segment kilit zinciri
+  (`_find_initial_segment` yeni 40 yıldız kuralından bağımsız doğru
+  çalışıyor — sebebi doküman içinde açıklandı), sahne dosyalarının script
+  bağlantıları, autoload isimlerinin her çağrıda tutarlı yazılması
+  (`SFXManager`/`AdManager`/`MusicManager`), örnek olarak incelenen
+  transpose+ayna uygulanmış bir level'ın (level_095) geometri bütünlüğü.
+
 ## Bilinen sınırlamalar / henüz yapılmayanlar
 
-- **Ses efektleri altyapısı var ama gerçek ses dosyası yok** — `SFXManager`
-  doğru olayları çağırıyor, sadece `res://audio/sfx/*.ogg` dosyaları eksik
-  (bkz. `puzzleboard/audio/sfx/README.md`). Müzik de aynı durumda:
-  `music_manager.gd` autoload artık düzgün kayıtlı ama `res://audio/music.ogg`
-  dosyası projede yok.
+- **Ses efektleri şu an yer tutucu** — `puzzleboard/audio/sfx/*.wav`
+  altında basit, kod-üretilen sinüs tonlar var (gerçek ses tasarımı değil).
+  Gerçek dosyalar hazır olunca aynı isimle üzerine yazman yeterli. Müzik
+  hâlâ tamamen eksik: `music_manager.gd` autoload artık düzgün kayıtlı ama
+  `res://audio/music.ogg` dosyası projede yok.
 - **Google Play Games / Game Center bulut kayıt** entegre değil. Bunun için
   gereken: Android tarafında "Play Game Services" export eklentisi, iOS
   tarafında Game Center eklentisi, ayrıca Google Play Console / App Store

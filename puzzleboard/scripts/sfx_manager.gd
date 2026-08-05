@@ -2,11 +2,12 @@ extends Node
 
 ## Autoload (bkz. project.godot [autoload]). Basit ses efekti oynatıcı.
 ##
-## Şu an res://audio/sfx/ altında hiçbir ses dosyası YOK. play() çağrıldığında
-## dosya bulunamazsa sessizce hiçbir şey yapmaz (hata da vermez) — yani kod
-## şimdiden çağrılabilir, ses dosyaları eklenince otomatik çalmaya başlar,
-## başka bir kod değişikliği gerekmez. Kendi dosyanı SFX_FILES'taki adla
-## res://audio/sfx/ klasörüne koymanız yeterli.
+## res://audio/sfx/ altında basit, kod-üretilen (procedural sinüs tonlar)
+## YER TUTUCU .wav dosyaları var — gerçek ses tasarımı değil, sadece oyunun
+## artık tamamen sessiz olmaması için. Kendi gerçek ses dosyalarını
+## eklediğinde aynı isimle (SFX_FILES'taki) üzerine yazman yeterli, kod
+## değişikliği gerekmez. Bir dosya hiç bulunamazsa play() sessizce hiçbir
+## şey yapmaz (hata vermez).
 ##
 ## Ayarlar ekranındaki "Ses Efektleri" toggle'ı (SaveManager "sound_effects"
 ## anahtarı) kapalıysa play() hiçbir şey çalmaz.
@@ -22,13 +23,13 @@ extends Node
 
 const SFX_DIR := "res://audio/sfx/"
 const SFX_FILES := {
-	"move": "move.ogg",
-	"push": "push.ogg",
-	"invalid": "invalid.ogg",
-	"undo": "undo.ogg",
-	"redo": "redo.ogg",
-	"win": "win.ogg",
-	"deadlock": "deadlock.ogg",
+	"move": "move.wav",
+	"push": "push.wav",
+	"invalid": "invalid.wav",
+	"undo": "undo.wav",
+	"redo": "redo.wav",
+	"win": "win.wav",
+	"deadlock": "deadlock.wav",
 }
 
 const POOL_SIZE := 4

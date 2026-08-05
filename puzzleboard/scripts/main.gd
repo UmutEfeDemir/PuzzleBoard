@@ -63,7 +63,7 @@ func _ready() -> void:
 
 	var level_path: String = GameState.current_level_path
 	if level_path == "":
-		level_path = "res://levels/level_01.tres"
+		level_path = "res://levels/level_001.tres"
 
 	var level: LevelData = load(level_path)
 	grid_manager.load_level(level)
