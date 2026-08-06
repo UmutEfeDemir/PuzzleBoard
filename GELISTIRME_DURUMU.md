@@ -19,8 +19,10 @@ Son güncelleme: 2026-08-05
 
 Kod üzerinden çizilen (sprite/tileset asset'i olmayan), Sokoban tarzı kutu
 itme bulmacası. Mobil hedefli (Godot mobile rendering + swipe input +
-titreşim). Şu an **400 level** var (16 bölüm x 25 level), tüm temel oyun
-döngüsü (hareket/itme/undo/redo/yıldız/kayıt/deadlock uyarısı) çalışıyor.
+titreşim). Şu an **501 level** var (20 bölüm x 25 level + 1 özel level,
+5 parametrik kalıp: stack/turn/zcorridor/staircase/riskytrap, + 1 el
+yapımı gerçek mekanik: kapı/düğme), tüm temel oyun döngüsü
+(hareket/itme/undo/redo/yıldız/kayıt/deadlock uyarısı) çalışıyor.
 
 ## Bu oturumda yapılan değişiklikler
 
@@ -328,9 +330,130 @@ aynen kullanıldı — **0 boyut uyarısı**, hepsi sığıyor.
 - Level dosyaları `level_101.tres` … `level_400.tres` (3 haneli, zaten
   001-100 ile aynı format).
 
+### 19. KRİTİK BUG: 392 level dosyası bozuktu (UTF-8 BOM)
+Kullanıcı Godot'ta `res://levels/level_392.tres:1 - Parse Error: Expected
+'['.` hatalarıyla karşılaştı. Sebep: PowerShell 5.1'de `Set-Content
+-Encoding utf8` görünmez bir UTF-8 BOM (baytları `EF BB BF`) dosyanın
+başına ekliyor, Godot'un `resource_format_text.cpp` ayrıştırıcısı bunu
+kabul etmiyor. Etkilenen: **level_009 - level_400 arası TÜM 392 dosya**
+(sadece 3 tanesi değil — kullanıcı sadece ilk gördüğü 3 hatayı bildirdi).
+level_001-008 etkilenmedi (onlar PowerShell değil, doğrudan Write tool'la
+yazılmıştı).
+- Düzeltme: tüm 392 dosyadan BOM baytları silindi (içerik hiç değişmedi,
+  sadece dosya başındaki 3 görünmez bayt kaldırıldı — `git diff` her
+  dosyada 1 satır değişti gösteriyor).
+- Kök neden de düzeltildi: üretim scriptinde artık `Set-Content -Encoding
+  utf8` yerine `[System.IO.File]::WriteAllLines` + `UTF8Encoding($false)`
+  kullanılıyor (BOM eklemeyen versiyon) — script tekrar çalıştırılırsa
+  hata tekrarlanmaz.
+- **Ders**: Windows PowerShell'de dosya yazarken `-Encoding utf8` asla
+  güvenilmemeli, hep BOM ekliyor. `utf8NoBOM` (PS 7+) ya da .NET
+  `WriteAllLines`/`WriteAllText` + `New-Object System.Text.UTF8Encoding
+  $false` kullanılmalı.
+
+### 20. Level 401-500 + 4. kalıp: Staircase (çok dönüşlü koridor)
+Kullanıcı 500'e çıkarken haklı bir uyarı yaptı: "hala aynı bölümlerin
+yönlerinin değişmesiyle oluşmuş seviyeler bu kötü imaj veriyor" — yani
+sadece ayna/transpose ile çeşitlendirmek yetersiz, gerçek yeni bir
+mekanik gerekiyordu.
+
+- **Yeni: `New-StaircaseLevel`** — Z-Corridor'un genellemesi, sağa-aşağı-
+  sağa-aşağı-...-sağa (N yatay bacak, N-1 dikey bacak, "merdiven" şekli).
+  Aynı whitelist tekniği, sadece daha çok bacak. Merdiven deseni bilerek
+  hep aynı yönde (asla geri dönmüyor) ilerliyor, bu yüzden yol kendini asla
+  kesmiyor, kısayol riski yok. 4 farklı bacak sayısı/uzunluk kombinasyonunda
+  (2, 3, 4 dönüşlü — hatta 4 bacak+3 dikey = 6 dönüşlü) BFS ile test edildi,
+  **formül (Σbacaklar + 2×(dönüş sayısı)) hepsinde birebir eşleşti**.
+- **Denenip TERK EDİLEN**: "Crossing" — iki kutunun yollarının kesiştiği,
+  birini geçici bir cebe park edip diğerini geçirmeyi gerektiren sıra-
+  bağımlı bir bulmaca. Sokoban'ın **hedeflerin kutuya özel olmaması**
+  kuralına takıldı: BFS her seferinde "doğru kutuyu doğru hedefe ata"
+  diye basit bir yer-değiştirme kestirmesi buluyordu, tasarlanan geçiş
+  mekaniğini hiç kullanmadan (iki farklı geometri denendi, ikisi de aynı
+  sorunla — biri tamamen çözülemez çıktı, diğeri kestirmeyle çözüldü).
+  S-Turn ile aynı kategoride bir ders: Sokoban'da bazı "sezgisel olarak
+  zor" tasarımlar matematiksel olarak zorlanamıyor.
+- Level 9-500 bu aşamada 4 kalıpla (stack/turn/zcorridor/staircase) bir kez
+  daha üretildi — sonra bölüm 21'de 5. kalıp (riskytrap) eklenince tekrar
+  yenilendi, bkz. aşağı.
+
+### 21. 5. kalıp: Riskli Hamle (Risky Trap) — gerçek "yanlış seçim" mekaniği
+Kullanıcı "hepsini düşünüyorum, hepsi bizim için bir zorluk demek" dedi,
+devam kararı verdik. Crossing'in başarısız olduğu "sıra bağımlılığı"
+hissini farklı bir açıdan yakalayan bir mekanik denedik: **kutu iki yöne
+de itilebilir gibi görünüyor ama sadece biri çözüme gidiyor, diğeri kalıcı
+köşe kilitlenmesi (deadlock).**
+
+- **`New-RiskyTrapLevel`**: doğru yol Turn ile aynı (sağa R kere, aşağı D
+  kere). Ama kutunun tam altında, sadece TEK hücrelik bir "tuzak" var —
+  oyuncu ilk hamleyi mantıklı görünen "aşağı" yaparsa kutu oraya gider ve
+  sol/sağ/üst/alt dört yönden de itilemez hale gelir (permanent deadlock).
+- İlk denemede **2 kez elle hata yaptım** (bir kez tuzağı kapatmayı
+  unuttum, bir kez de doğru yolu yanlışlıkla kapattım) — whitelist'e
+  (sadece açık hücreleri say, gerisini otomatik duvar yap) geçince
+  düzeldi. Bu, elle duvar sayma yerine whitelist kullanmanın neden daha
+  güvenli olduğunun bir başka kanıtı.
+- **5 farklı R/D parametresinde BFS ile ÇİFT doğrulama** yapıldı: (1) doğru
+  yoldan çözülebiliyor mu (evet, hepsinde, formül R+2+D birebir eşleşti),
+  (2) yanlış hamleden SONRAKİ duruma zorla geçilip o noktadan çözülebiliyor
+  mu kontrol edildi (hayır, hepsinde — gerçek tuzak, kestirme yok).
+- Level 9-500 **5. kez** yeniden üretildi — artık 5 kalıp (stack / turn /
+  zcorridor / staircase / riskytrap) dönüyor. 0 boyut uyarısı, 0 BOM sorunu.
+- **Artık dürüst özet güncel**: 5 kalıptan biri (riskytrap) gerçek bir
+  "yanlış seçim yaparsan geri dönmen gerekir" hissi veriyor — bu, sadece
+  "daha çok dönüş" değil, gerçekten farklı bir zorluk boyutu (oyuncunun
+  ileriyi düşünmesini gerektiriyor, deadlock uyarı sistemiyle de örtüşüyor).
+  Crossing (2 kutu sıra bağımlılığı) hâlâ çözülmedi, elle tasarım gerektirir.
+
+### 22. GERÇEK yeni oyun mekaniği: Kapı / Düğme (switch/door)
+Kullanıcının fikri: "iki kutuyu bir yere itelim, kırmızı bir düğme olsun,
+bir kapı olsun, kutuyu geçirip kırmızı düğmeyi normal yerine götürelim."
+Bu, önceki 5 kalıptan (hepsi salt geometri/duvar oyunuydu) farklı — bu
+sefer **gerçek bir oyun kuralı** eklendi, motor koduna dokunuldu:
+
+- **`level_data.gd`**: yeni `switches: Array[Vector2i]`, `doors:
+  Array[Vector2i]`, `tutorial_key: String` alanları + `is_door(pos)`.
+  Boş bırakılırsa (mevcut 501 level gibi) hiçbir etkisi yok, tam geriye
+  dönük uyumlu.
+- **`grid_manager.gd`**: `_is_blocked(pos)` — duvar VEYA (kapalı) kapı
+  ise geçilemez. `_update_door_state()` — herhangi bir kutu herhangi bir
+  switch hücresindeyse kapılar açık, DEĞİLSE kapalı (kullanıcının seçimi:
+  basınç plakası gibi, kutu düğmeden ayrılırsa kapı tekrar kapanıyor).
+  `try_move()`, `undo()`, `_apply_move()` bu kontrolü kullanacak şekilde
+  güncellendi. Yeni `door_state_changed(is_open)` sinyali.
+- **`main.gd`**: düğme kırmızı bir yuvarlak olarak çiziliyor (hedef
+  işaretinin yerini alıyor, çünkü switch genelde bir target'ın üstünde
+  duruyor). Kapı hücreleri kapalıyken koyu kırmızı, açılınca zemin rengine
+  yumuşak geçiş yapıyor (`_on_door_state_changed`, tween). Yeni bir
+  **tutorial kart sistemi** (`_maybe_show_tutorial` / `TUTORIAL_TEXTS`):
+  level'in `tutorial_key`'i varsa VE daha önce görülmediyse ("tutorial_seen_*"
+  SaveManager ayarı) kısa bir açıklama kartı gösterip bir daha çıkmıyor.
+- **Level 501** (`puzzleboard/levels/level_501.tres`): kapı/düğme
+  mekaniğini tanıtan ilk el yapımı level, `tutorial_key="door_switch"`.
+  BoxA yukarı itilip düğmeye/hedefe konuluyor → kapı açılıyor → BoxB
+  sağa itilip kapıdan geçip kendi hedefine gidiyor. **Whitelist yöntemiyle
+  BFS'e ÇİFT doğrulatıldı**: (1) kapı mekanizmasıyla çözülebiliyor (bfs=10,
+  ok=True), (2) kapı hiç yoksa (switch'siz, kapı kalıcı duvar) AYNI
+  geometri çözülemez çıkıyor (ok=False) — yani mekanik süs değil, gerçekten
+  gerekli. BFS çözücü de (`Solve-Sokoban`) kapı/switch farkında hale
+  getirildi (`doors`/`switches` parametreleri, her state'te "şu an kapı
+  açık mı" dinamik hesaplanıyor).
+- Script'te bir sıralama hatası çıktı ve düzeltildi: PowerShell'de
+  fonksiyonlar tanımlanmadan çağrılamıyor — `Write-LevelTres`'i çağıran
+  kod, fonksiyonun TANIMINDAN ÖNCE yazılmıştı, "not recognized" hatası
+  verdi. Kod fonksiyon tanımından sonraya taşındı.
+- **Ölçeklenebilirlik notu**: bu mekanik, diğer 5 kalıp gibi "parametre
+  değiştir, yüzlercesini üret" kolaylığında DEĞİL — her yeni düzen elle
+  tasarlanıp (kapılı VE kapısız iki BFS çalıştırmasıyla) doğrulanmalı.
+  Yine de level 501'in yapısı (dal + ana koridor + kapı) parametrize
+  edilebilir (dal mesafesi, koridor uzunluğu, kapı konumu) — istenirse
+  bu da bir üretici fonksiyona dönüştürülüp 20-30+ varyasyon üretilebilir,
+  ama bu henüz yapılmadı.
+
 ## Yol haritası (kullanıcıyla üzerinde anlaşılan sıra)
 
-1. ~~Daha fazla level~~ ✅ (Level 5-8, sonra 9-100, sonra 101-400 — toplam 400)
+1. ~~Daha fazla level~~ ✅ (Level 5-8, sonra 9-100, sonra 101-400, sonra
+   401-500 — toplam 500, 4 kalıp: stack/turn/zcorridor/staircase)
 2. ~~Oyun mekaniği iyileştirmeleri~~ ✅ (redo + basit deadlock tespiti)
 3. ~~Cilalama / UX~~ ✅ (shake animasyonu + level select ilerleme göstergesi)
 4. ~~Ses efektleri altyapısı~~ ✅ (`SFXManager` + olaylara bağlandı — gerçek
@@ -341,20 +464,20 @@ aynen kullanıldı — **0 boyut uyarısı**, hepsi sığıyor.
    istenirse (muhtemelen Play Games Cloud Save ile, kod gerektirmeyen
    Google'ın hazır sistemi) devreye sokulabilir.
 6. **Şu an sırada: uçtan uca elle test** — bu oturumda çok fazla değişiklik
-   art arda geldi (100→400 level, redo/deadlock, SFX, segment sistemi),
-   hiçbiri birlikte gerçek cihazda/editörde test edilmedi. Kullanıcı
-   yorgun olduğu için bu adımı henüz yapmadı.
+   art arda geldi (100→500 level, redo/deadlock, SFX, segment sistemi,
+   BOM bug'ı), hiçbiri birlikte gerçek cihazda/editörde test edilmedi.
+   Kullanıcı bunu kendisi yapıyor.
 
 ## Test ederken dikkat
 
 - Godot'u kapat/aç (ya da projeyi yeniden içe aktar) — yeni eklenen autoload'lar
   (`MusicManager`, `SFXManager`) ve viewport ayarlarının editöre yansıması
   için gerekebilir.
-- `Splash.tscn` (ya da `MainMenu.tscn`) çalıştır, Level Seç'te artık **16
-  Bölüm** ve toplam **400 level** görünmeli. Bölüm 2'den itibaren hepsi
+- `Splash.tscn` (ya da `MainMenu.tscn`) çalıştır, Level Seç'te artık **20
+  Bölüm** ve toplam **501 level** görünmeli. Bölüm 2'den itibaren hepsi
   başta kilitli olmalı (bir önceki bölümde en az 40 yıldız kazanılmadan
   açılmamalı — bkz. `STARS_REQUIRED_TO_UNLOCK_SEGMENT`).
-- Pager'ın (`< Bölüm N >`) 16 bölüm arasında düzgün gezindiğini, kilitli
+- Pager'ın (`< Bölüm N >`) 20 bölüm arasında düzgün gezindiğini, kilitli
   bir bölüme gidilebildiğini ama içindeki levellerin kilitli göründüğünü
   doğrula.
 - Ayarlar ekranında "İlerlemeyi Sıfırla"yı test edeceksen, önce birkaç level
@@ -363,12 +486,20 @@ aynen kullanıldı — **0 boyut uyarısı**, hepsi sığıyor.
 - Yeni üretilen levellardan birkaçını (özellikle Bölüm 3-4'ten büyük olanları)
   gerçekten oynayıp board'un ekrana sığdığını ve hücrelerin dokunulabilir
   boyutta kaldığını gözle kontrol et.
+- **Level 501'i (Kapı/Düğme) mutlaka test et** — bu oturumun EN riskli
+  kod değişikliği (motor kuralı, sadece level verisi değil). Kontrol
+  edilecekler: kırmızı düğme görünüyor mu, kapı başta koyu kırmızı (kapalı)
+  mı, boxA düğmeye gelince kapı zemin rengine dönüp açılıyor mu, boxA
+  düğmeden ayrılırsa kapı tekrar kapanıp boxB'yi durduruyor mu, "Yeni
+  Mekanik!" tutorial kartı ilk girişte çıkıp bir daha çıkmıyor mu (ikinci
+  kez oynayınca).
 
-## Sıradaki konuşulan fikir (henüz kodlanmadı)
+## Sıradaki konuşulan fikirler (henüz yapılmadı)
 
-Kullanıcı önerisi: **geri al (undo) monetizasyonu** — ilk geri alma ücretsiz,
-ikinciden itibaren ödüllü reklam izleterek hak kazanma; ayrıca her ~2 oyunda
-bir 10 saniyelik reklam. Bunun için gereken: bir reklam SDK'sı (ör. Google
-AdMob) + Godot export eklentisi + hesap/uygulama kaydı (mağaza tarafı,
-kullanıcının yapması gerekiyor) — Google Play Games entegrasyonuyla aynı
-kategoride, ayrı bir iş paketi olarak ele alınacak.
+- **Kapı/düğme mekaniğini parametrize edip çoğaltma** — kullanıcı sordu,
+  şu an sadece 1 el yapımı level (501) var. İstenirse dal mesafesi/koridor
+  uzunluğu/kapı konumu parametrize edilip 20-30+ varyasyon üretilebilir
+  (her biri çift BFS doğrulamasıyla: kapıyla çözülüyor mu, kapısız
+  çözülemez mi).
+- **Google Play Games / Game Center bulut kayıt** — kullanıcı erteledi
+  (bkz. yol haritası madde 5), `SaveManager.cloud_sync_handler` hazır.

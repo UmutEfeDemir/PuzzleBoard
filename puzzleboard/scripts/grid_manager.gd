@@ -10,10 +10,16 @@ signal box_pushed(from: Vector2i, to: Vector2i)
 signal level_completed
 signal move_count_changed(count: int)
 signal box_deadlocked(pos: Vector2i)
+signal door_state_changed(is_open: bool)
 
 var level: LevelData
 var player_pos: Vector2i
 var box_positions: Array[Vector2i] = []
+
+## Kapılar şu an açık mı (bkz. LevelData.switches/doors). Level'de kapı
+## tanımlı değilse hep false kalır ama hiçbir etkisi olmaz (_is_blocked
+## sadece level.doors doluysa devreye giriyor).
+var doors_open: bool = false
 
 var _undo_stack: Array[MoveCommand] = []
 var _redo_stack: Array[MoveCommand] = []
@@ -28,6 +34,29 @@ func load_level(p_level: LevelData) -> void:
 	_redo_stack.clear()
 	move_count = 0
 	move_count_changed.emit(move_count)
+	_update_door_state()
+
+
+## Duvar VEYA (kapalı) kapı olduğu için geçilemeyen hücre mi?
+func _is_blocked(pos: Vector2i) -> bool:
+	if level.is_wall(pos):
+		return true
+	if level.is_door(pos) and not doors_open:
+		return true
+	return false
+
+
+## Herhangi bir kutu bir düğmenin üzerindeyse kapılar açık, değilse kapalı.
+## Kutu düğmeden ayrılırsa (itilirse) kapı otomatik geri kapanır.
+func _update_door_state() -> void:
+	var should_be_open := false
+	for switch_pos in level.switches:
+		if switch_pos in box_positions:
+			should_be_open = true
+			break
+	if should_be_open != doors_open:
+		doors_open = should_be_open
+		door_state_changed.emit(doors_open)
 
 
 ## dir: Vector2i.UP / DOWN / LEFT / RIGHT
@@ -35,7 +64,7 @@ func load_level(p_level: LevelData) -> void:
 func try_move(dir: Vector2i) -> bool:
 	var target_pos: Vector2i = player_pos + dir
 
-	if not level.is_within_bounds(target_pos) or level.is_wall(target_pos):
+	if not level.is_within_bounds(target_pos) or _is_blocked(target_pos):
 		return false
 
 	var box_index: int = box_positions.find(target_pos)
@@ -48,7 +77,7 @@ func try_move(dir: Vector2i) -> bool:
 
 	# Hedefte kutu var, itmeyi dene
 	var box_target: Vector2i = target_pos + dir
-	if not level.is_within_bounds(box_target) or level.is_wall(box_target):
+	if not level.is_within_bounds(box_target) or _is_blocked(box_target):
 		return false
 	if box_target in box_positions:
 		return false  # arkasında başka kutu var, itilemez
@@ -68,6 +97,7 @@ func _apply_move(cmd: MoveCommand) -> void:
 		var idx: int = box_positions.find(cmd.box_from)
 		box_positions[idx] = cmd.box_to
 		box_pushed.emit(cmd.box_from, cmd.box_to)
+		_update_door_state()
 		_check_deadlock(cmd.box_to)
 
 
@@ -93,6 +123,7 @@ func undo() -> void:
 		var idx: int = box_positions.find(cmd.box_to)
 		box_positions[idx] = cmd.box_from
 		box_pushed.emit(cmd.box_to, cmd.box_from)
+		_update_door_state()
 
 	_redo_stack.append(cmd)
 	move_count = max(0, move_count - 1)

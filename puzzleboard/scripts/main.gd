@@ -18,6 +18,8 @@ const COLOR_TARGET := Color(0.95, 0.75, 0.25)
 const COLOR_PLAYER := Color(0.35, 0.65, 0.95)
 const COLOR_BOX := Color(0.78, 0.55, 0.32)
 const COLOR_BOX_ON_TARGET := Color(0.45, 0.85, 0.45)
+const COLOR_SWITCH := Color(0.85, 0.25, 0.25)
+const COLOR_DOOR_CLOSED := Color(0.55, 0.16, 0.16)
 const COLOR_SCREEN_BG := Color("5b46e0")  # zemin gradyanının orta durağı
 const COLOR_ICON_PURPLE := Color("5b46e0")
 const COLOR_TRACK := Color("e2ddf7")
@@ -28,7 +30,9 @@ var swipe_input: SwipeInput
 
 var board_layer: Node2D
 var box_nodes: Dictionary = {}  # Vector2i (güncel pozisyon) -> Panel
+var door_nodes: Dictionary = {}  # Vector2i -> Panel (kapı hücreleri, sabit)
 var player_node: Panel
+var _ui_canvas: CanvasLayer
 
 var move_value_label: Label
 var progress_bar: ProgressBar
@@ -77,6 +81,9 @@ func _ready() -> void:
 	grid_manager.level_completed.connect(_on_level_completed)
 	grid_manager.move_count_changed.connect(_on_move_count_changed)
 	grid_manager.box_deadlocked.connect(_on_box_deadlocked)
+	grid_manager.door_state_changed.connect(_on_door_state_changed)
+
+	_maybe_show_tutorial(level)
 
 
 func _make_cell_panel(color: Color, size: Vector2, corner_radius: int) -> Panel:
@@ -105,16 +112,35 @@ func _build_board(level: LevelData) -> void:
 		for y in range(level.grid_height):
 			var pos := Vector2i(x, y)
 			var is_wall := level.is_wall(pos)
+			var is_door := level.is_door(pos)
 			var cell_size := Vector2(CELL_SIZE - CELL_GAP, CELL_SIZE - CELL_GAP)
-			var cell := _make_cell_panel(COLOR_WALL if is_wall else COLOR_FLOOR, cell_size, 4 if is_wall else 10)
+
+			var cell_color := COLOR_FLOOR
+			var corner_radius := 10
+			if is_wall:
+				cell_color = COLOR_WALL
+				corner_radius = 4
+			elif is_door:
+				cell_color = COLOR_FLOOR if grid_manager.doors_open else COLOR_DOOR_CLOSED
+				corner_radius = 8
+
+			var cell := _make_cell_panel(cell_color, cell_size, corner_radius)
 			cell.position = Vector2(pos) * CELL_SIZE
 			board_layer.add_child(cell)
+			if is_door:
+				door_nodes[pos] = cell
 
-			if not is_wall and level.is_target(pos):
-				var marker_size := CELL_SIZE * 0.32
-				var marker := _make_cell_panel(COLOR_TARGET, Vector2(marker_size, marker_size), int(marker_size / 2))
-				marker.position = cell.position + cell_size / 2 - marker.size / 2
-				board_layer.add_child(marker)
+			if not is_wall and not is_door:
+				if pos in level.switches:
+					var switch_marker_size := CELL_SIZE * 0.32
+					var switch_marker := _make_cell_panel(COLOR_SWITCH, Vector2(switch_marker_size, switch_marker_size), int(switch_marker_size / 2))
+					switch_marker.position = cell.position + cell_size / 2 - switch_marker.size / 2
+					board_layer.add_child(switch_marker)
+				elif level.is_target(pos):
+					var marker_size := CELL_SIZE * 0.32
+					var marker := _make_cell_panel(COLOR_TARGET, Vector2(marker_size, marker_size), int(marker_size / 2))
+					marker.position = cell.position + cell_size / 2 - marker.size / 2
+					board_layer.add_child(marker)
 
 	for box_pos in level.boxes:
 		var box_color := COLOR_BOX_ON_TARGET if level.is_target(box_pos) else COLOR_BOX
@@ -158,6 +184,7 @@ func _fit_board_to_screen(level: LevelData) -> void:
 func _build_ui() -> void:
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
+	_ui_canvas = canvas
 
 	var top_margin := MarginContainer.new()
 	top_margin.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -376,6 +403,88 @@ func _build_deadlock_toast(canvas: CanvasLayer) -> void:
 	deadlock_toast.add_child(label)
 
 	deadlock_toast.modulate = Color(1, 1, 1, 0)
+
+
+## Bir kutu bir düğmeye gelip/düğmeden ayrılıp kapı(lar) açılınca/kapanınca
+## çağrılır — tüm kapı panellerinin rengini yumuşakça geçirir.
+func _on_door_state_changed(is_open: bool) -> void:
+	var target_color := COLOR_FLOOR if is_open else COLOR_DOOR_CLOSED
+	for pos in door_nodes:
+		var panel: Panel = door_nodes[pos]
+		var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
+		var tw := create_tween()
+		tw.tween_property(style, "bg_color", target_color, 0.2)
+
+
+## Bu level.tutorial_key'in daha önce hiç gösterilmemiş olması durumunda,
+## kısa bir "yeni mekanik" kartı gösterip bir daha çıkmayacak şekilde
+## işaretler (bkz. SaveManager "tutorial_seen_*" ayarları).
+const TUTORIAL_TEXTS := {
+	"door_switch": "Kırmızı düğmeye bir kutu koy, kapı açılsın! Kutu düğmeden ayrılırsa kapı tekrar kapanır.",
+}
+
+func _maybe_show_tutorial(level: LevelData) -> void:
+	if level.tutorial_key == "":
+		return
+	var text: String = TUTORIAL_TEXTS.get(level.tutorial_key, "")
+	if text == "":
+		return
+	var seen_key := "tutorial_seen_" + level.tutorial_key
+	if SaveManager.get_setting(seen_key, false):
+		return
+	SaveManager.set_setting(seen_key, true)
+	_show_tutorial_card(text)
+
+
+func _show_tutorial_card(text: String) -> void:
+	var overlay := Control.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_ui_canvas.add_child(overlay)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.6)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(bg)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(center)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 32)
+	margin.add_theme_constant_override("margin_right", 32)
+	center.add_child(margin)
+
+	var card := UITheme.make_card(20, 20)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin.add_child(card)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 14)
+	card.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Yeni Mekanik!"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", UITheme.COLOR_TEXT_DARK)
+	vbox.add_child(title)
+
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", UITheme.COLOR_TEXT_MUTED)
+	vbox.add_child(label)
+
+	var ok_btn := UITheme.make_chunky_button(
+		"Anladım", Vector2(0, 48), UITheme.COLOR_ACCENT, UITheme.COLOR_ACCENT_SHADOW, UITheme.COLOR_ACCENT_TEXT, 16
+	)
+	ok_btn.pressed.connect(overlay.queue_free)
+	vbox.add_child(ok_btn)
 
 
 func _on_box_deadlocked(_pos: Vector2i) -> void:
