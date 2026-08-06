@@ -54,9 +54,10 @@ Splash ──(2 sn / dokun)──▶ Ana Menü ──OYNA──▶ Level Seç �
 - **Level Seç**: her level bir rozet (kilitli/mevcut/tamamlanmış duruma göre
   renklenir). Bir önceki level en az 1 yıldızla bitirilmeden bir sonraki
   açılmaz. `res://levels/` altındaki `.tres` dosyalarını otomatik tarar —
-  yeni level eklediğinde kod değişikliği gerekmez. 100 level, 25'erlik
-  4 "Bölüm" sekmesine ayrılmış durumda (bir bölüm, bir öncekinin son
-  leveli bitirilmeden açılmaz).
+  yeni level eklediğinde kod değişikliği gerekmez. 400 level, 25'erlik
+  16 "Bölüm"e ayrılmış durumda, aralarında ok (< >) ile gezinilir (bkz.
+  `level_select.gd`). Bir sonraki bölüm, bir öncekinde en az 40 yıldız
+  kazanılmadan açılmaz.
 - **Oyun İçi**: üstte kapat (X), level adı, hamle sayacı, Geri Al; altında
   hamle ilerleme çubuğu (yeşil = 3 yıldız sınırı, sarı = 2 yıldız, kırmızı =
   1 yıldızda kaldın).

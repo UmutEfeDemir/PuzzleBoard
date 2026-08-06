@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LevelData" format=3 uid="uid://mob2dhk85nf4h"]
+﻿[gd_resource type="Resource" script_class="LevelData" format=3 uid="uid://mob2dhk85nf4h"]
 
 [ext_resource type="Script" uid="uid://bedqu6mpvlmah" path="res://scripts/level_data.gd" id="1_lv054"]
 

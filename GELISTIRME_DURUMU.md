@@ -19,7 +19,7 @@ Son güncelleme: 2026-08-05
 
 Kod üzerinden çizilen (sprite/tileset asset'i olmayan), Sokoban tarzı kutu
 itme bulmacası. Mobil hedefli (Godot mobile rendering + swipe input +
-titreşim). Şu an **100 level** var (4 bölüm x 25 level), tüm temel oyun
+titreşim). Şu an **400 level** var (16 bölüm x 25 level), tüm temel oyun
 döngüsü (hareket/itme/undo/redo/yıldız/kayıt/deadlock uyarısı) çalışıyor.
 
 ## Bu oturumda yapılan değişiklikler
@@ -272,24 +272,91 @@ tutarlılık kontrolü yapıldı.
   freeze deadlock'ları tespit edilmiyor.
 - Gerçek lokalizasyon sistemi yok, proje tamamen Türkçe.
 
+### 17. Level çeşitliliği: gerçek 2. mekanik (Z-Corridor)
+Kullanıcı haklı bir eleştiri getirdi: 100 level'ın tamamı sadece 2 kalıbın
+(düz itme / sağ+aşağı tek dönüş) boyut+yön varyasyonlarıydı — gerçekten
+farklı hissettiren yeni bir mekanik yoktu.
+
+- **Önce "S-Turn" (sağ-aşağı-sağ, 2 dönüş) denendi ve BAŞARISIZ oldu.**
+  Sebep matematiksel: açık bir odada aynı eksendeki iki bacak (iki "sağ")
+  her zaman tek harekette birleştirilebiliyor — BFS her seferinde 2. dönüşü
+  atlayıp kestirmeden gidiyordu (bir duvarla bile engellenemedi, çünkü
+  kestirme farklı bir sütunda gerçekleşiyordu). **Açık alanda 1 dönüşten
+  fazlasını zorlamak Sokoban'da imkansız** — bunu görmek epey BFS
+  denemesi/path-trace gerektirdi.
+- **Çözüm: `New-ZCorridorLevel`** — gerçek, dar (1 hücre genişliğinde),
+  duvarla çevrili bir Z/S koridoru. Kutunun geçebileceği HER hücre tek tek
+  beyaz listeye alınıp geri kalan her şey duvar yapıldı (whitelist yöntemi
+  — "aç, sonra kapat" yerine "sadece izin verileni aç"). Dönüş
+  noktalarında oyuncunun kutunun etrafına dolaşabilmesi için tek hücrelik
+  "cep"ler eklendi (klasik Sokoban köşe dönüşü prensibi). 5 farklı a/b/c
+  parametre setinde BFS ile test edildi, hepsinde **formül (a+b+c+4) ile
+  BFS birebir eşleşti** — yani gerçek 2 dönüşlü zorluk garantili.
+- Level 9-100, artık **3 kalıp döngüsü** (stack / turn / zcorridor) +
+  8 yönlü ayna/transpose ile yeniden üretildi. Üretim scripti bu oturumda
+  kullanılıp silindi (kalıcı değil), ama yöntem burada belgeli — aynı
+  yaklaşımla (whitelist + BFS doğrulama) yeni şablonlar eklenebilir.
+- **Öğrenilen genel ders**: Sokoban'da gerçek zorluk (birden fazla dönüş,
+  sıra bağımlılığı) SADECE gerçek duvar/labirent yapılarıyla mümkün — açık
+  odalarda "daha fazla bacak eklemek" hiçbir şey ZORLAMAZ, BFS her zaman en
+  kısa (Manhattan-optimal) yolu bulur. İleride daha fazla çeşitlilik
+  isteniyorsa (300-400 level hedefi), yeni şablonlar da bu whitelist +
+  BFS-doğrulama yöntemiyle inşa edilmeli, formüle asla körü körüne
+  güvenilmemeli.
+
+### 18. Level 101-400 eklendi (400'e tamamlandı)
+Kullanıcının uzun vadeli hedefi: oyuncu "level bitti" duvarına çarpmasın
+diye elde bol miktarda içerik olsun. 100'de kurulan aynı üretim yöntemi
+(3 kalıp: stack/turn/zcorridor, formülle BFS-doğrulanmış hamle sayıları,
+8 yönlü ayna/transpose, hepsi 13x11 mobil sınırı içinde) 101-400 için de
+aynen kullanıldı — **0 boyut uyarısı**, hepsi sığıyor.
+
+- Zorluk parametreleri (K, itme mesafeleri) tier 4'te (level 76-100'de
+  ulaşılan değerler) **plato yapıyor** — 13x11 sınırı içinde bundan daha
+  zor bir versiyon üretilemez, bu yüzden 101-400 aynı "azami" aralığı
+  kullanıyor, sadece $L (level numarası) her hesaba girdiği için tam
+  aynı parametreler tekrar etmiyor (farklı K/mesafe/yön kombinasyonları).
+- `level_select.gd` hiç değişmedi — zaten tamamen dinamik
+  (`res://levels/` klasörünü tarayıp `SEGMENT_SIZE=25`'e göre otomatik
+  bölümlere ayırıyor), 400 level otomatik olarak 16 Bölüm'e ayrıldı.
+- **Dürüst not (bkz. bölüm 17)**: bu 300 level de aynı 3 mekanik
+  kalıbının varyasyonu — miktar arttı, mekanik çeşitlilik artmadı.
+  Kullanıcı bunu bilerek kabul etti ("kalıbı olabildiğince fazla tutup
+  gereğinden fazla oyun üretmemiz lazım... level bitti hissi yaratmasın").
+  Gerçek yeni mekanik (4. bir kalıp) istenirse whitelist+BFS yöntemiyle
+  eklenip mevcut havuza sonradan karıştırılabilir.
+- Level dosyaları `level_101.tres` … `level_400.tres` (3 haneli, zaten
+  001-100 ile aynı format).
+
 ## Yol haritası (kullanıcıyla üzerinde anlaşılan sıra)
 
-1. ~~Daha fazla level~~ ✅ (Level 5-8 eklendi)
+1. ~~Daha fazla level~~ ✅ (Level 5-8, sonra 9-100, sonra 101-400 — toplam 400)
 2. ~~Oyun mekaniği iyileştirmeleri~~ ✅ (redo + basit deadlock tespiti)
 3. ~~Cilalama / UX~~ ✅ (shake animasyonu + level select ilerleme göstergesi)
 4. ~~Ses efektleri altyapısı~~ ✅ (`SFXManager` + olaylara bağlandı — gerçek
    .ogg dosyaları hâlâ eksik, eklenince otomatik çalışır)
-5. **Google Play Games / Game Center bulut kayıt** ← sırada — büyük iş
-   paketi, mağaza tarafı kurulum gerektiriyor, ayrı ele alınacak
+5. **Google Play Games / Game Center bulut kayıt** — kullanıcı bilerek
+   ERTELEDİ ("oyunu bitirmem gerekmekte" dedi), şimdilik dokunulmuyor.
+   `SaveManager.cloud_sync_handler` kancası hazır bekliyor, ne zaman
+   istenirse (muhtemelen Play Games Cloud Save ile, kod gerektirmeyen
+   Google'ın hazır sistemi) devreye sokulabilir.
+6. **Şu an sırada: uçtan uca elle test** — bu oturumda çok fazla değişiklik
+   art arda geldi (100→400 level, redo/deadlock, SFX, segment sistemi),
+   hiçbiri birlikte gerçek cihazda/editörde test edilmedi. Kullanıcı
+   yorgun olduğu için bu adımı henüz yapmadı.
 
 ## Test ederken dikkat
 
 - Godot'u kapat/aç (ya da projeyi yeniden içe aktar) — yeni eklenen autoload'lar
   (`MusicManager`, `SFXManager`) ve viewport ayarlarının editöre yansıması
   için gerekebilir.
-- `Splash.tscn` (ya da `MainMenu.tscn`) çalıştır, Level Seç'te artık 4 Bölüm
-  sekmesi ve toplam 100 level görünmeli. Bölüm 2-3-4 başta kilitli olmalı
-  (bir önceki bölümü bitirmeden açılmamalı).
+- `Splash.tscn` (ya da `MainMenu.tscn`) çalıştır, Level Seç'te artık **16
+  Bölüm** ve toplam **400 level** görünmeli. Bölüm 2'den itibaren hepsi
+  başta kilitli olmalı (bir önceki bölümde en az 40 yıldız kazanılmadan
+  açılmamalı — bkz. `STARS_REQUIRED_TO_UNLOCK_SEGMENT`).
+- Pager'ın (`< Bölüm N >`) 16 bölüm arasında düzgün gezindiğini, kilitli
+  bir bölüme gidilebildiğini ama içindeki levellerin kilitli göründüğünü
+  doğrula.
 - Ayarlar ekranında "İlerlemeyi Sıfırla"yı test edeceksen, önce birkaç level
   bitirip yıldız kazan, sonra sıfırlayıp Level Seç'in kilitli duruma
   döndüğünü doğrula.
