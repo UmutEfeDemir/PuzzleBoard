@@ -4,7 +4,15 @@
       "PowerShell(Remove-Item -Path \"c:\\\\Users\\\\fuatd\\\\Downloads\\\\files\\\\bulmuca-oyunu-deneme\\\\scripts\\\\example_level_generator.gd\" -Confirm:$false)",
       "PowerShell(Remove-Item -Path \"c:\\\\Users\\\\fuatd\\\\Downloads\\\\files\\\\bulmuca-oyunu-deneme\\\\.godot\" -Recurse -Force -Confirm:$false)",
       "PowerShell(Remove-Item -Path \"c:\\\\Users\\\\fuatd\\\\Downloads\\\\files\\\\bulmuca-oyunu-deneme\\\\Test.tscn\" -Confirm:$false)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(grep -n \"^function New-RiskyTrapLevel\\\\|^}$\" \"C:\\\\Users\\\\fuatd\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-fuatd-Downloads-PuzzleBoard\\\\d91eb1a8-2333-4a40-82ba-9ca7c9bb1d1d\\\\scratchpad\\\\generate_levels.ps1\")",
+      "Bash(grep -n '^if \\($dsWriteReady\\)' 'C:\\\\Users\\\\fuatd\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-fuatd-Downloads-PuzzleBoard\\\\d91eb1a8-2333-4a40-82ba-9ca7c9bb1d1d\\\\scratchpad\\\\generate_levels.ps1')",
+      "PowerShell($env:STURN_DEBUG=\"1\"; powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\fuatd\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-fuatd-Downloads-PuzzleBoard\\\\d91eb1a8-2333-4a40-82ba-9ca7c9bb1d1d\\\\scratchpad\\\\generate_levels.ps1\" 2>&1 | Select-String -Pattern \"surpriz|Level 2|Level 7|Level 1[39]|branch=|ATLANDI\")",
+      "PowerShell($env:STURN_DEBUG=\"1\"; powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\fuatd\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-fuatd-Downloads-PuzzleBoard\\\\d91eb1a8-2333-4a40-82ba-9ca7c9bb1d1d\\\\scratchpad\\\\generate_levels.ps1\")",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\fuatd\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-fuatd-Downloads-PuzzleBoard\\\\d91eb1a8-2333-4a40-82ba-9ca7c9bb1d1d\\\\scratchpad\\\\test_single.ps1\")",
+      "PowerShell(powershell -ExecutionPolicy Bypass -Command \"& { . 'C:\\\\Users\\\\fuatd\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-fuatd-Downloads-PuzzleBoard\\\\d91eb1a8-2333-4a40-82ba-9ca7c9bb1d1d\\\\scratchpad\\\\funcs.ps1'; \\\\$g = New-DoorSwitchLevel -BranchDist 1 -PreDoorGap 1 -PostDoorDist 2; Write-Host \\\\\"cells: $\\($g.walls.Count\\) w=$\\($g.width\\) h=$\\($g.height\\)\\\\\"; \\\\$sw=[System.Diagnostics.Stopwatch]::StartNew\\(\\); \\\\$r = Solve-Sokoban \\\\$g; \\\\$sw.Stop\\(\\); Write-Host \\\\\"WITH: ok=$\\($r.ok\\) ms=$\\($sw.ElapsedMilliseconds\\)\\\\\" }\")",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\fuatd\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-fuatd-Downloads-PuzzleBoard\\\\d91eb1a8-2333-4a40-82ba-9ca7c9bb1d1d\\\\scratchpad\\\\quick_test.ps1\")",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:/Users/fuatd/AppData/Local/Temp/claude/c--Users-fuatd-Downloads-PuzzleBoard/d91eb1a8-2333-4a40-82ba-9ca7c9bb1d1d/scratchpad/quick_test.ps1\")"
     ]
   }
 }
